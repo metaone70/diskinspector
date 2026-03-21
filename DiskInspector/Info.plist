@@ -2,39 +2,129 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleDocumentTypes</key>
+	<!-- App identity -->
+	<key>CFBundleDisplayName</key>
+	<string>Disk Inspector</string>
+	<key>CFBundleName</key>
+	<string>Disk Inspector</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.2</string>
+	<key>CFBundleVersion</key>
+	<string>1.2</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 by metesev</string>
+	<!-- Bundle the C64 Pro Mono font inside the app — no system install needed -->
+	<key>ATSApplicationFontsPath</key>
+	<string>.</string>
+	<!-- Exported Type Declarations — these tell macOS about our custom file formats -->
+	<key>UTExportedTypeDeclarations</key>
 	<array>
+		<!-- D64 Disk Image -->
 		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>LSHandlerRank</key>
-			<string>Default</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>com.example.item-document</string>
-			</array>
-			<key>NSUbiquitousDocumentUserActivityType</key>
-			<string>$(PRODUCT_BUNDLE_IDENTIFIER).exampledocument</string>
-		</dict>
-	</array>
-	<key>UTImportedTypeDeclarations</key>
-	<array>
-		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.diskinspector.d64</string>
+			<key>UTTypeDescription</key>
+			<string>C64 Disk Image (D64)</string>
 			<key>UTTypeConformsTo</key>
 			<array>
-				<string>com.apple.package</string>
+				<string>public.data</string>
 			</array>
-			<key>UTTypeDescription</key>
-			<string>Example Document</string>
-			<key>UTTypeIdentifier</key>
-			<string>com.example.item-document</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
 				<array>
-					<string>exampledocument</string>
+					<string>d64</string>
 				</array>
 			</dict>
+		</dict>
+		<!-- D71 Disk Image -->
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.diskinspector.d71</string>
+			<key>UTTypeDescription</key>
+			<string>C128 Disk Image (D71)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>d71</string>
+				</array>
+			</dict>
+		</dict>
+		<!-- D81 Disk Image -->
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.diskinspector.d81</string>
+			<key>UTTypeDescription</key>
+			<string>1581 Disk Image (D81)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>d81</string>
+				</array>
+			</dict>
+		</dict>
+		<!-- D64File clipboard type (for drag-and-drop between windows) -->
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.diskinspector.d64file</string>
+			<key>UTTypeDescription</key>
+			<string>Disk Inspector File Entry</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict/>
+		</dict>
+	</array>
+	<!-- Document Types — tells macOS which files this app opens -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>C64 Disk Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.diskinspector.d64</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>C128 Disk Image (D71)</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.diskinspector.d71</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>1581 Disk Image (D81)</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.diskinspector.d81</string>
+			</array>
 		</dict>
 	</array>
 </dict>
