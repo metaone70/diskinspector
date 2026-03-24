@@ -90,6 +90,17 @@ struct DiskInspectorApp: App {
                 }
             }
 
+            // ── Tools ──
+            CommandMenu("Tools") {
+                Button("Separators…") {
+                    guard let window = NSApplication.shared.keyWindow,
+                          let doc = DocumentRegistry.shared.document(for: window)
+                    else { return }
+                    SeparatorLibraryWindow.open(document: doc)
+                }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+            }
+
             // ── Help ──
             CommandGroup(replacing: .help) {
                 Button("Disk Inspector Help") {

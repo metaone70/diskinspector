@@ -91,7 +91,7 @@ struct DiskWindowView: View {
     @State private var showingInfo: Bool = false
     
     let fontSize:        CGFloat = 14
-    let lineHeight:      CGFloat = 20
+    let lineHeight:      CGFloat = 16
     let padding:         CGFloat = 16
     let maxVisibleLines: Int     = 25
     let colBlocks:       CGFloat = 42
@@ -340,6 +340,20 @@ struct DiskWindowView: View {
                             for (index, file) in currentDisk.files.enumerated() {
                                 selection.select(file, at: index)
                             }
+                        }
+                    }
+                    return nil
+                }
+                // Cmd-R  Run selected file in C64 VICE
+                // Cmd-Shift-R  Run selected file in C128 VICE
+                if event.keyCode == 15 && cmd {
+                    if let lastIdx = selection.lastTappedIndex(),
+                       let currentDisk = D64Parser.parse(data: document.data),
+                       lastIdx < currentDisk.files.count {
+                        let file = currentDisk.files[lastIdx]
+                        let emulator: VICELauncher.Emulator = shift ? .c128 : .c64
+                        DispatchQueue.main.async {
+                            VICELauncher.launchFile(document: document, file: file, emulator: emulator)
                         }
                     }
                     return nil
@@ -606,7 +620,7 @@ struct DiskWindowView: View {
     func spacerLine() -> some View {
         Text(" ")
             .font(.custom("C64 Pro Mono", size: fontSize))
-            .frame(height: lineHeight)
+            .frame(height: 4)
     }
 
     // ── Directory row ──────────────────────────────────────
