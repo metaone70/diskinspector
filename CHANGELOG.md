@@ -10,10 +10,12 @@
 - Insert separators after the currently selected file
 - Keyboard shortcut Cmd-R to run selected file in C64 VICE (x64sc)
 - Keyboard shortcut Cmd-Shift-R to run selected file in C128 VICE (x128)
+- Arrow key navigation in directory listing (Shift+Arrow for multi-select)
 - Tighter directory line spacing for authentic C64 screen look
 
 ### Bug Fixes
 - Disabled auto-save — changes are only written to disk via explicit Save (Cmd-S) or Save As (Cmd-Shift-S)
+- Fixed separator library inserting into wrong window when multiple disks are open
 - Fixed renaming PETSCII separator files corrupting the first characters (UTF-8 vs PETSCII encoding)
 - Fixed renaming always targeting the first match when multiple identical files exist (now uses directory index)
 - Fixed rename cursor being invisible on dark blue background (white insertion point and selection highlight)

@@ -61,6 +61,8 @@ Insert decorative PETSCII separator lines into your disk directory:
 | Cmd-R | Run selected file in C64 VICE |
 | Cmd-Shift-R | Run selected file in C128 VICE |
 | Cmd-Shift-L | Open Separator Library |
+| Up/Down Arrow | Navigate directory listing |
+| Shift+Arrow | Extend selection up/down |
 | Delete | Delete selected files |
 | Double-click | View file (BASIC or Hex) |
 
