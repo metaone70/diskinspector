@@ -1,4 +1,4 @@
-# Disk Inspector v1.2
+# Disk Inspector v1.3
 
 **A Commodore 64/128 disk image editor for macOS**
 
@@ -19,14 +19,16 @@ Drag **Disk Inspector.app** to your **Applications** folder.
 ## Features
 
 - View and edit Commodore disk images with authentic C64 styling
+- Tighter directory line spacing for authentic C64 screen look
 - Copy, move, rename, and delete files between disk images
 - Drag and drop files between multiple open disks
 - Hex editor with direct byte editing and save to disk
 - BASIC listing viewer (v2.0 and v7.0 detokenizer)
 - Visual BAM map with sector-level view
+- Separator library with 21 built-in PETSCII patterns and custom separator support
 - Disk integrity validation
 - Export directory as text or styled HTML
-- Launch disks and files directly in VICE emulator
+- Launch disks and files directly in VICE emulator with keyboard shortcuts
 - Import/export files to and from Mac filesystem
 
 ## VICE Integration
@@ -35,6 +37,15 @@ To use the VICE emulator integration:
 1. Go to **Disk Inspector → VICE Settings**
 2. Browse to your x64sc and x128 binaries
 3. Right-click any file → **Run File in VICE** or **Open Disk in VICE**
+4. Or use **Cmd-R** / **Cmd-Shift-R** to launch the selected file directly
+
+## Separator Library
+
+Insert decorative PETSCII separator lines into your disk directory:
+1. Go to **Tools → Separators** (or press **Cmd-Shift-L**)
+2. Browse built-in patterns (lines, borders, blocks, decorative)
+3. Double-click or press **Insert** to add to the disk
+4. Create your own custom separators with the **New…** button
 
 ## Keyboard Shortcuts
 
@@ -47,6 +58,9 @@ To use the VICE emulator integration:
 | Cmd-Shift-Z | Redo |
 | Cmd-S | Save |
 | Cmd-Shift-S | Save As |
+| Cmd-R | Run selected file in C64 VICE |
+| Cmd-Shift-R | Run selected file in C128 VICE |
+| Cmd-Shift-L | Open Separator Library |
 | Delete | Delete selected files |
 | Double-click | View file (BASIC or Hex) |
 

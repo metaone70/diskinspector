@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3
+
+- Tighter directory line spacing (16pt rows, 4pt spacers) for authentic C64 screen look
+- Separator library with 21 built-in PETSCII patterns (lines, borders, blocks, decorative)
+- Custom separator support with persistent storage
+- Separator library accessible via Tools menu (Cmd-Shift-L)
+- Keyboard shortcut Cmd-R to run selected file in C64 VICE (x64sc)
+- Keyboard shortcut Cmd-Shift-R to run selected file in C128 VICE (x128)
+
 ## v1.2
 
 - Fixed D64 files appearing greyed out in the Open dialog on systems where another app (e.g. VICE) had already registered a UTType for .d64/.d71/.d81 extensions

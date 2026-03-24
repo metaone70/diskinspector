@@ -158,7 +158,7 @@ struct AboutView: View {
                 .font(.custom(monoFont, size: 18))
                 .foregroundColor(Color.c64Blue)
 
-            Text("VERSION 1.2")
+            Text("VERSION 1.3")
                 .font(.custom(monoFont, size: 11))
                 .foregroundColor(Color.c64LightBlue)
 
