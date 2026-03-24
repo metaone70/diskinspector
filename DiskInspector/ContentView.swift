@@ -14,6 +14,7 @@ extension Color {
 struct C64TextField: NSViewRepresentable {
     @Binding var text: String
     let fontSize: CGFloat
+    var autoFocus: Bool = true
     var onSubmit: () -> Void
     var onEscape: () -> Void
 
@@ -34,18 +35,17 @@ struct C64TextField: NSViewRepresentable {
         field.cell?.isScrollable = true
         field.cell?.wraps = false
 
-        // Make the field first responder after a short delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            field.window?.makeFirstResponder(field)
-            // Select all text so the user can start typing immediately
-            field.currentEditor()?.selectAll(nil)
-            // Set cursor (insertion point) color to white
-            if let editor = field.currentEditor() as? NSTextView {
-                editor.insertionPointColor = .white
-                editor.selectedTextAttributes = [
-                    .backgroundColor: NSColor.white.withAlphaComponent(0.3),
-                    .foregroundColor: NSColor.white
-                ]
+        if autoFocus {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                field.window?.makeFirstResponder(field)
+                field.currentEditor()?.selectAll(nil)
+                if let editor = field.currentEditor() as? NSTextView {
+                    editor.insertionPointColor = .white
+                    editor.selectedTextAttributes = [
+                        .backgroundColor: NSColor.white.withAlphaComponent(0.3),
+                        .foregroundColor: NSColor.white
+                    ]
+                }
             }
         }
         return field
@@ -539,6 +539,7 @@ struct DiskWindowView: View {
                     C64TextField(
                         text: $diskIDText,
                         fontSize: fontSize,
+                        autoFocus: false,
                         onSubmit: { commitDiskRename() },
                         onEscape: { renamingDisk = false }
                     )
