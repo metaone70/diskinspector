@@ -34,59 +34,59 @@ struct SeparatorPattern: Identifiable {
 
 struct SeparatorLibrary {
 
-    // PETSCII codes reference:
+    // PETSCII codes reference (uppercase/graphics mode):
     // $40 = horizontal bar ─
-    // $60 = lower-left bar
-    // $6E = lower-right bar
-    // $70 = upper-right bar
-    // $7D = upper-left bar ┌ (in uppercase mode)
-    // $43 = ─ (C shifted)
-    // $55 = ┼ cross
-    // $5D = │ vertical bar
-    // $6B = ┤ right-T
-    // $73 = ├ left-T
-    // $72 = ┴ bottom-T
-    // $71 = ┬ top-T
-    // $51 = ● ball
-    // $57 = ◤ upper-left triangle
-    // $5C = ◣ lower-left triangle (shifted pound)
-    // $69 = ◥ upper-right
-    // $5F = ◢ lower-right
-    // $66 = ▌ left half
-    // $62 = ▐ right half
-    // $A0 = shifted space (padding)
+    // $6D = lower-left corner └
+    // $6E = lower-right corner (upper-left visually) ┐
+    // $70 = upper-right corner ┘
+    // $7D = upper-left corner ┌
+    // $5D = vertical bar │
+    // $6B = right-T ┤
+    // $73 = left-T ├
+    // $72 = bottom-T ┴
+    // $71 = top-T ┬
+    // $5B = cross ┼
+    // $51 = ● filled circle
+    // $57 = ◤ triangle upper-left
+    // $5C = ◣ triangle lower-left
+    // $69 = ◢ triangle lower-right
+    // $5F = ◥ triangle upper-right
+    // $61 = ▌ left half block
+    // $62 = ▐ right half / upper half
+    // $A0 = shifted space (solid block when reversed)
     // $2A = * asterisk
     // $2D = - dash
     // $3D = = equals
+    // $2E = . period
+    // $5A = ♦ diamond
+    // $53 = ♥ heart
+    // $41 = ♠ spade
+    // $58 = ♣ club
 
     static let patterns: [SeparatorPattern] = {
         var list: [SeparatorPattern] = []
 
-        // ── Single Lines ──
+        // ── Lines ──
         list.append(SeparatorPattern(
             name: "Horizontal Line",
             rawBytes: Array(repeating: UInt8(0x40), count: 16),
             category: "Lines"
         ))
-
         list.append(SeparatorPattern(
             name: "Dashes",
             rawBytes: Array(repeating: UInt8(0x2D), count: 16),
             category: "Lines"
         ))
-
         list.append(SeparatorPattern(
             name: "Equals",
             rawBytes: Array(repeating: UInt8(0x3D), count: 16),
             category: "Lines"
         ))
-
         list.append(SeparatorPattern(
             name: "Asterisks",
             rawBytes: Array(repeating: UInt8(0x2A), count: 16),
             category: "Lines"
         ))
-
         list.append(SeparatorPattern(
             name: "Dots",
             rawBytes: Array(repeating: UInt8(0x2E), count: 16),
@@ -99,19 +99,16 @@ struct SeparatorLibrary {
             rawBytes: [0x70] + Array(repeating: UInt8(0x40), count: 14) + [0x6E],
             category: "Borders"
         ))
-
         list.append(SeparatorPattern(
             name: "Bottom Border",
             rawBytes: [0x6D] + Array(repeating: UInt8(0x40), count: 14) + [0x7D],
             category: "Borders"
         ))
-
         list.append(SeparatorPattern(
             name: "T-Junction Line",
             rawBytes: [0x73] + Array(repeating: UInt8(0x40), count: 14) + [0x6B],
             category: "Borders"
         ))
-
         list.append(SeparatorPattern(
             name: "Cross Line",
             rawBytes: [0x5B] + Array(repeating: UInt8(0x40), count: 14) + [0x5B],
@@ -120,23 +117,15 @@ struct SeparatorLibrary {
 
         // ── Block Graphics ──
         list.append(SeparatorPattern(
-            name: "Full Blocks",
-            rawBytes: Array(repeating: UInt8(0xA0), count: 16),
-            category: "Blocks"
-        ))
-
-        list.append(SeparatorPattern(
             name: "Left Half Blocks",
             rawBytes: Array(repeating: UInt8(0x61), count: 16),
             category: "Blocks"
         ))
-
         list.append(SeparatorPattern(
             name: "Upper Half Blocks",
             rawBytes: Array(repeating: UInt8(0x62), count: 16),
             category: "Blocks"
         ))
-
         list.append(SeparatorPattern(
             name: "Checker Pattern",
             rawBytes: (0..<16).map { $0 % 2 == 0 ? UInt8(0x66) : UInt8(0x5C) },
@@ -149,32 +138,26 @@ struct SeparatorLibrary {
             rawBytes: Array(repeating: UInt8(0x51), count: 16),
             category: "Decorative"
         ))
-
         list.append(SeparatorPattern(
             name: "Diamond Line",
             rawBytes: Array(repeating: UInt8(0x5A), count: 16),
             category: "Decorative"
         ))
-
         list.append(SeparatorPattern(
             name: "Heart Line",
             rawBytes: Array(repeating: UInt8(0x53), count: 16),
             category: "Decorative"
         ))
-
         list.append(SeparatorPattern(
-            name: "Spade-Ball Alternate",
-            rawBytes: (0..<16).map { $0 % 2 == 0 ? UInt8(0x41) : UInt8(0x51) },
+            name: "Club Line",
+            rawBytes: Array(repeating: UInt8(0x58), count: 16),
             category: "Decorative"
         ))
-
         list.append(SeparatorPattern(
-            name: "Arrow Right",
-            rawBytes: [0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x3E, 0x3E,
-                       0x3E, 0x3E, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40],
+            name: "Spade Line",
+            rawBytes: Array(repeating: UInt8(0x41), count: 16),
             category: "Decorative"
         ))
-
         list.append(SeparatorPattern(
             name: "Stars and Bars",
             rawBytes: [0x2A, 0x40, 0x40, 0x2A, 0x40, 0x40, 0x2A, 0x40,
@@ -248,15 +231,18 @@ struct SeparatorLibraryWindow {
         let window = NSWindow(contentViewController: view)
         window.title = "Separators"
         window.styleMask = [.titled, .closable, .resizable]
-        window.setContentSize(NSSize(width: 420, height: 500))
-        window.minSize = NSSize(width: 360, height: 300)
+        window.setContentSize(NSSize(width: 520, height: 540))
+        window.minSize = NSSize(width: 440, height: 300)
         window.center()
+        window.backgroundColor = NSColor(Color.c64Blue)
         let controller = NSWindowController(window: window)
         controller.showWindow(nil)
         window.makeKeyAndOrderFront(nil)
         objc_setAssociatedObject(window, "controller", controller, .OBJC_ASSOCIATION_RETAIN)
     }
 }
+
+// MARK: - Separator Library View (DirMaster-style C64 look)
 
 struct SeparatorLibraryView: View {
     let document: D64Document
@@ -267,6 +253,7 @@ struct SeparatorLibraryView: View {
     @State private var customText = ""
 
     private let monoFont = "C64 Pro Mono"
+    private let rowHeight: CGFloat = 16
 
     var allPatterns: [SeparatorPattern] {
         SeparatorLibrary.patterns + customSeparators.patterns
@@ -274,76 +261,102 @@ struct SeparatorLibraryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // ── C64-style header bar ──
             HStack {
-                Text("SEPARATOR LIBRARY")
+                Text(" SEPARATORS ")
                     .font(.custom(monoFont, size: 14))
                     .foregroundColor(Color.c64Blue)
+                    .background(Color.c64LightBlue)
                 Spacer()
-                Button("New…") {
+                Button(action: {
                     customName = ""
                     customText = ""
                     showingCustomEditor = true
+                }) {
+                    Text(" NEW ")
+                        .font(.custom(monoFont, size: 11))
+                        .foregroundColor(Color.c64Blue)
+                        .background(Color.c64LightBlue)
                 }
-                .font(.custom(monoFont, size: 11))
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .background(Color.c64Blue)
 
-            Divider()
-
-            // Pattern list grouped by category
+            // ── Separator list on blue background ──
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(SeparatorLibrary.categories + (customSeparators.patterns.isEmpty ? [] : ["Custom"]), id: \.self) { category in
-                        Text(category.uppercased())
-                            .font(.custom(monoFont, size: 10))
+                    let cats = SeparatorLibrary.categories
+                        + (customSeparators.patterns.isEmpty ? [] : ["Custom"])
+
+                    ForEach(cats, id: \.self) { category in
+                        // Category header — light blue text on blue
+                        Text("  \(category.uppercased())")
+                            .font(.custom(monoFont, size: 11))
                             .foregroundColor(Color.c64LightBlue)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 10)
-                            .padding(.bottom, 4)
+                            .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading)
+                            .padding(.top, 6)
 
                         ForEach(patternsForCategory(category)) { pattern in
                             separatorRow(pattern)
                         }
                     }
                 }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
             }
+            .background(Color.c64Blue)
 
-            Divider()
-
-            // Action buttons
-            HStack {
-                Button("Insert") {
-                    insertSelected()
+            // ── Bottom action bar ──
+            HStack(spacing: 12) {
+                Button(action: { insertSelected() }) {
+                    Text("INSERT")
+                        .font(.custom(monoFont, size: 11))
+                        .foregroundColor(selectedID != nil ? Color.c64Blue : Color.c64Blue.opacity(0.5))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(selectedID != nil ? Color.c64LightBlue : Color.c64LightBlue.opacity(0.3))
                 }
+                .buttonStyle(.plain)
                 .disabled(selectedID == nil)
-                .font(.custom(monoFont, size: 12))
 
-                Button("Insert x3") {
-                    insertSelectedMultiple(3)
+                Button(action: { insertSelectedMultiple(3) }) {
+                    Text("INSERT X3")
+                        .font(.custom(monoFont, size: 11))
+                        .foregroundColor(selectedID != nil ? Color.c64Blue : Color.c64Blue.opacity(0.5))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(selectedID != nil ? Color.c64LightBlue : Color.c64LightBlue.opacity(0.3))
                 }
+                .buttonStyle(.plain)
                 .disabled(selectedID == nil)
-                .font(.custom(monoFont, size: 12))
 
                 Spacer()
 
                 if let sel = selectedID, customSeparators.patterns.contains(where: { $0.id == sel }) {
-                    Button("Delete Custom") {
+                    Button(action: {
                         if let idx = customSeparators.patterns.firstIndex(where: { $0.id == sel }) {
                             customSeparators.remove(at: idx)
                             selectedID = nil
                         }
+                    }) {
+                        Text("DELETE")
+                            .font(.custom(monoFont, size: 11))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.red.opacity(0.8))
                     }
-                    .font(.custom(monoFont, size: 11))
-                    .foregroundColor(.red)
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.c64Blue)
         }
-        .frame(minWidth: 360, minHeight: 300)
+        .background(Color.c64Blue)
         .sheet(isPresented: $showingCustomEditor) {
             customEditorSheet
         }
@@ -359,32 +372,30 @@ struct SeparatorLibraryView: View {
     func separatorRow(_ pattern: SeparatorPattern) -> some View {
         let isSelected = selectedID == pattern.id
         return HStack(spacing: 0) {
-            // Preview: show as it would appear in directory
             Text("0   ")
                 .font(.custom(monoFont, size: 14))
-                .foregroundColor(isSelected ? .white : Color.c64Blue)
+                .foregroundColor(isSelected ? Color.c64Blue : Color.c64LightBlue)
 
             Text("\"\(pattern.displayName)\"")
                 .font(.custom(monoFont, size: 14))
-                .foregroundColor(isSelected ? .white : Color.c64Blue)
+                .foregroundColor(isSelected ? Color.c64Blue : Color.c64LightBlue)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .lineLimit(1)
 
             Text("DEL")
                 .font(.custom(monoFont, size: 14))
-                .foregroundColor(isSelected ? .white : Color.c64LightBlue)
-                .padding(.trailing, 16)
+                .foregroundColor(isSelected ? Color.c64Blue : Color.c64LightBlue)
         }
-        .padding(.horizontal, 16)
-        .frame(height: 20)
-        .background(isSelected ? Color.c64Blue : Color.clear)
+        .padding(.horizontal, 8)
+        .frame(height: rowHeight)
+        .background(isSelected ? Color.c64LightBlue : Color.clear)
         .contentShape(Rectangle())
-        .onTapGesture {
-            selectedID = pattern.id
-        }
         .onTapGesture(count: 2) {
             selectedID = pattern.id
             insertSelected()
+        }
+        .onTapGesture {
+            selectedID = pattern.id
         }
     }
 
@@ -421,7 +432,7 @@ struct SeparatorLibraryView: View {
                 Text("Text:")
                     .font(.custom(monoFont, size: 11))
                     .foregroundColor(Color.c64LightBlue)
-                TextField("Enter up to 16 characters", text: $customText)
+                TextField("Up to 16 characters", text: $customText)
                     .font(.custom(monoFont, size: 14))
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: customText) {
@@ -436,9 +447,7 @@ struct SeparatorLibraryView: View {
                 .foregroundColor(Color.c64LightBlue.opacity(0.7))
 
             HStack {
-                Button("Cancel") {
-                    showingCustomEditor = false
-                }
+                Button("Cancel") { showingCustomEditor = false }
                 Spacer()
                 Button("Add") {
                     guard !customName.isEmpty, !customText.isEmpty else { return }

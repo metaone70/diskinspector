@@ -91,7 +91,7 @@ struct DiskWindowView: View {
     @State private var showingInfo: Bool = false
     
     let fontSize:        CGFloat = 14
-    let lineHeight:      CGFloat = 16
+    let lineHeight:      CGFloat = 14
     let padding:         CGFloat = 16
     let maxVisibleLines: Int     = 25
     let colBlocks:       CGFloat = 42
@@ -448,8 +448,6 @@ struct DiskWindowView: View {
             .background(Color.c64Blue)
             .lineLimit(1)
 
-            spacerLine()
-            
             ForEach(Array(zip(disk.files.indices, disk.files)), id: \.1.id) { index, file in
                 if insertionIndex == index {
                     insertionLine()
@@ -513,8 +511,6 @@ struct DiskWindowView: View {
             if insertionIndex == disk.files.count {
                 insertionLine()
             }
-
-            spacerLine()
 
             Spacer(minLength: 0)
 
