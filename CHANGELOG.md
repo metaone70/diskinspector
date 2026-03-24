@@ -19,6 +19,7 @@
 - Fixed renaming PETSCII separator files corrupting the first characters (UTF-8 vs PETSCII encoding)
 - Fixed renaming always targeting the first match when multiple identical files exist (now uses directory index)
 - Fixed rename cursor being invisible on dark blue background (white insertion point and selection highlight)
+- Fixed disk rename double-click focusing the ID field instead of the name field
 
 ## v1.2
 
