@@ -435,6 +435,40 @@ struct DiskWindowView: View {
                     }
                     return nil
                 }
+                // Arrow Down — select next file
+                if event.keyCode == 125 && !cmd {
+                    DispatchQueue.main.async {
+                        guard let currentDisk = D64Parser.parse(data: document.data),
+                              !currentDisk.files.isEmpty else { return }
+                        let lastIdx = selection.lastTappedIndex() ?? -1
+                        let nextIdx = min(lastIdx + 1, currentDisk.files.count - 1)
+                        let file = currentDisk.files[nextIdx]
+                        if shift {
+                            selection.select(file, at: nextIdx)
+                            selection.lastTappedKey = selection.key(for: file, at: nextIdx)
+                        } else {
+                            selection.selectOnly(file, at: nextIdx)
+                        }
+                    }
+                    return nil
+                }
+                // Arrow Up — select previous file
+                if event.keyCode == 126 && !cmd {
+                    DispatchQueue.main.async {
+                        guard let currentDisk = D64Parser.parse(data: document.data),
+                              !currentDisk.files.isEmpty else { return }
+                        let lastIdx = selection.lastTappedIndex() ?? currentDisk.files.count
+                        let prevIdx = max(lastIdx - 1, 0)
+                        let file = currentDisk.files[prevIdx]
+                        if shift {
+                            selection.select(file, at: prevIdx)
+                            selection.lastTappedKey = selection.key(for: file, at: prevIdx)
+                        } else {
+                            selection.selectOnly(file, at: prevIdx)
+                        }
+                    }
+                    return nil
+                }
                 // Cmd-R  Run selected file in C64 VICE
                 // Cmd-Shift-R  Run selected file in C128 VICE
                 if event.keyCode == 15 && cmd {
@@ -490,33 +524,25 @@ struct DiskWindowView: View {
                         .font(.custom("C64 Pro Mono", size: fontSize))
                         .foregroundColor(.white)
 
-                    TextField("", text: $diskNameText)
-                        .font(.custom("C64 Pro Mono", size: fontSize))
-                        .foregroundColor(.white)
-                        .background(Color.c64Blue)
-                        .frame(width: 160, height: lineHeight)
-                        .textFieldStyle(.plain)
-                        .focused($diskNameFocused)
-                        .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                diskNameFocused = true
-                            }
-                        }
-                        .onSubmit { commitDiskRename() }
-                        .onExitCommand { renamingDisk = false }
+                    C64TextField(
+                        text: $diskNameText,
+                        fontSize: fontSize,
+                        onSubmit: { commitDiskRename() },
+                        onEscape: { renamingDisk = false }
+                    )
+                    .frame(width: 160, height: lineHeight)
 
                     Text("\" ")
                         .font(.custom("C64 Pro Mono", size: fontSize))
                         .foregroundColor(.white)
 
-                    TextField("", text: $diskIDText)
-                        .font(.custom("C64 Pro Mono", size: fontSize))
-                        .foregroundColor(.white)
-                        .background(Color.c64Blue)
-                        .frame(width: 40, height: lineHeight)
-                        .textFieldStyle(.plain)
-                        .onSubmit { commitDiskRename() }
-                        .onExitCommand { renamingDisk = false }
+                    C64TextField(
+                        text: $diskIDText,
+                        fontSize: fontSize,
+                        onSubmit: { commitDiskRename() },
+                        onEscape: { renamingDisk = false }
+                    )
+                    .frame(width: 40, height: lineHeight)
 
                     Text(" \(disk.format.dosVersion)")
                         .font(.custom("C64 Pro Mono", size: fontSize))
