@@ -103,11 +103,7 @@ struct DiskInspectorApp: App {
             // ── Tools ──
             CommandMenu("Tools") {
                 Button("Separators…") {
-                    guard let window = NSApplication.shared.keyWindow,
-                          let doc = DocumentRegistry.shared.document(for: window)
-                    else { return }
-                    let sel = DocumentRegistry.shared.selection(for: window)
-                    SeparatorLibraryWindow.open(document: doc, selection: sel)
+                    SeparatorLibraryWindow.open()
                 }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
             }

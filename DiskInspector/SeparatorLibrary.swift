@@ -205,10 +205,10 @@ class CustomSeparators: ObservableObject {
 // MARK: - Separator Library Window
 
 struct SeparatorLibraryWindow {
-    /// Open the separator library. Pass the selection state so inserts go after the selected file.
-    static func open(document: D64Document, selection: SelectionState? = nil) {
+    /// Open the separator library. Inserts target whichever document window is frontmost.
+    static func open() {
         let view = NSHostingController(
-            rootView: SeparatorLibraryView(document: document, selection: selection)
+            rootView: SeparatorLibraryView()
         )
         let window = NSWindow(contentViewController: view)
         window.title = "Separators"
@@ -226,8 +226,6 @@ struct SeparatorLibraryWindow {
 // MARK: - Separator Library View
 
 struct SeparatorLibraryView: View {
-    let document: D64Document
-    let selection: SelectionState?
     @ObservedObject private var customSeparators = CustomSeparators.shared
     @State private var selectedID: UUID?
     @State private var showingCustomEditor = false
@@ -356,32 +354,45 @@ struct SeparatorLibraryView: View {
         }
     }
 
+    /// Find the most recent document window (skipping the separator library itself).
+    private func activeDocumentAndSelection() -> (D64Document, SelectionState?)? {
+        // orderedWindows is front-to-back; pick the first registered document window
+        for window in NSApplication.shared.orderedWindows {
+            if let doc = DocumentRegistry.shared.document(for: window) {
+                let sel = DocumentRegistry.shared.selection(for: window)
+                return (doc, sel)
+            }
+        }
+        return nil
+    }
+
     /// Find the directory slot index to insert AFTER the selected file in the main window
-    private func insertionTargetIndex() -> Int? {
-        guard let sel = selection, let lastIdx = sel.lastTappedIndex() else { return nil }
-        guard let disk = D64Parser.parse(data: document.data) else { return nil }
+    private func insertionTargetIndex(doc: D64Document, sel: SelectionState?) -> Int? {
+        guard let sel = sel, let lastIdx = sel.lastTappedIndex() else { return nil }
+        guard let disk = D64Parser.parse(data: doc.data) else { return nil }
         guard lastIdx < disk.files.count else { return nil }
         let targetFile = disk.files[lastIdx]
         guard let dirIdx = D64Parser.directoryIndex(
-            in: [UInt8](document.data), forFile: targetFile
+            in: [UInt8](doc.data), forFile: targetFile
         ) else { return nil }
         return dirIdx + 1  // insert AFTER the selected file
     }
 
     func insertSelected() {
         guard let sel = selectedID,
-              let pattern = allPatterns.first(where: { $0.id == sel }) else { return }
-        let target = insertionTargetIndex()
-        document.injectFile(pattern.toD64File(), at: target)
+              let pattern = allPatterns.first(where: { $0.id == sel }),
+              let (doc, selection) = activeDocumentAndSelection() else { return }
+        let target = insertionTargetIndex(doc: doc, sel: selection)
+        doc.injectFile(pattern.toD64File(), at: target)
     }
 
     func insertSelectedMultiple(_ count: Int) {
         guard let sel = selectedID,
-              let pattern = allPatterns.first(where: { $0.id == sel }) else { return }
-        var target = insertionTargetIndex()
+              let pattern = allPatterns.first(where: { $0.id == sel }),
+              let (doc, selection) = activeDocumentAndSelection() else { return }
+        var target = insertionTargetIndex(doc: doc, sel: selection)
         for _ in 0..<count {
-            document.injectFile(pattern.toD64File(), at: target)
-            // Advance target so subsequent inserts go in order
+            doc.injectFile(pattern.toD64File(), at: target)
             if let t = target { target = t + 1 }
         }
     }
