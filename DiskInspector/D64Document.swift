@@ -12,6 +12,9 @@ class D64Document: ReferenceFileDocument {
     var fileURL: URL?
     private var undoStack: [Data] = []
     private var redoStack: [Data] = []
+    /// Snapshot returned to SwiftUI — only updated on explicit Save,
+    /// preventing ReferenceFileDocument's auto-save from overwriting the file.
+    private var savedSnapshot: Data
 
     static var readableContentTypes: [UTType] {
         // Include our declared types AND any system/third-party types already
@@ -34,15 +37,20 @@ class D64Document: ReferenceFileDocument {
     required init(configuration: ReadConfiguration) throws {
         if let fileData = configuration.file.regularFileContents {
             data = fileData
+            savedSnapshot = fileData
             diskFormat = DiskFormat.detect(size: fileData.count) ?? .d64
         } else {
-            data = D64Document.createBlankD64(name: "NEW DISK", id: "00")
+            let blank = D64Document.createBlankD64(name: "NEW DISK", id: "00")
+            data = blank
+            savedSnapshot = blank
             diskFormat = .d64
         }
     }
 
     init() {
-        data = D64Document.createBlankD64(name: "NEW DISK", id: "00")
+        let blank = D64Document.createBlankD64(name: "NEW DISK", id: "00")
+        data = blank
+        savedSnapshot = blank
         diskFormat = .d64
     }
 
@@ -59,11 +67,14 @@ class D64Document: ReferenceFileDocument {
 
     init(format: DiskFormat = .d64) {
         diskFormat = format
+        let blank: Data
         switch format {
-        case .d71: data = D64Document.createBlankD71(name: "NEW DISK", id: "00")
-        case .d81: data = D64Document.createBlankD81(name: "NEW DISK", id: "00")
-        default:   data = D64Document.createBlankD64(name: "NEW DISK", id: "00")
+        case .d71: blank = D64Document.createBlankD71(name: "NEW DISK", id: "00")
+        case .d81: blank = D64Document.createBlankD81(name: "NEW DISK", id: "00")
+        default:   blank = D64Document.createBlankD64(name: "NEW DISK", id: "00")
         }
+        data = blank
+        savedSnapshot = blank
     }
     static func createBlankD64(name: String, id: String) -> Data {
         var bytes = [UInt8](repeating: 0x00, count: 174848)
@@ -259,7 +270,7 @@ class D64Document: ReferenceFileDocument {
         data = Data(bytes)
     }
 
-    func snapshot(contentType: UTType) throws -> Data { data }
+    func snapshot(contentType: UTType) throws -> Data { savedSnapshot }
 
     func fileWrapper(snapshot: Data, configuration: WriteConfiguration) throws -> FileWrapper {
         FileWrapper(regularFileWithContents: snapshot)
@@ -280,6 +291,7 @@ class D64Document: ReferenceFileDocument {
             do {
                 try data.write(to: url)
                 fileURL = url
+                savedSnapshot = data
             } catch {
                 showSaveError(error)
             }
@@ -312,6 +324,7 @@ class D64Document: ReferenceFileDocument {
             do {
                 try data.write(to: url)
                 fileURL = url
+                savedSnapshot = data
                 if let window = NSApplication.shared.keyWindow {
                     window.representedURL = url
                     window.title = diskDisplayName
@@ -393,9 +406,9 @@ class D64Document: ReferenceFileDocument {
         data = Data(bytes)
     }
 
-    func renameFile(_ file: D64File, to newName: String) {
+    func renameFileAtIndex(_ index: Int, to newName: String) {
         saveUndo()
-        guard let bytes = D64Parser.renameFile(in: [UInt8](data), file: file, newName: newName)
+        guard let bytes = D64Parser.renameFileAtIndex(in: [UInt8](data), index: index, newName: newName)
         else { undoStack.removeLast(); return }
         data = Data(bytes)
     }

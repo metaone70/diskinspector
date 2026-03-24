@@ -262,6 +262,32 @@ struct D64Parser {
         return String(cleaned)
     }
 
+    /// Reverse of petsciiToString — converts a display string back to PETSCII bytes.
+    /// PUA characters (U+E0xx) map back to byte xx, ASCII $20-$5F stays as-is,
+    /// solid block (U+2588) maps to $A0 shifted-space, others become $20.
+    static func stringToPetscii(_ str: String) -> [UInt8] {
+        str.map { ch -> UInt8 in
+            let scalar = ch.unicodeScalars.first!.value
+            // PUA range U+E000–E0FF → original PETSCII byte
+            if scalar >= 0xE000 && scalar <= 0xE0FF {
+                return UInt8(scalar - 0xE000)
+            }
+            // ASCII range that PETSCII shares ($20-$5F)
+            if scalar >= 0x20 && scalar <= 0x5F {
+                return UInt8(scalar)
+            }
+            // Lowercase a-z → PETSCII uppercase (C1-DA range)
+            if scalar >= 0x61 && scalar <= 0x7A {
+                return UInt8(scalar - 0x20)  // a→A etc. in ASCII/PETSCII $41-$5A
+            }
+            // Solid block → shifted space
+            if scalar == 0x2588 {
+                return 0xA0
+            }
+            return 0x20  // fallback: space
+        }
+    }
+
     // MARK: - Parse
 
     static func parse(data: Data) -> D64Disk? {
@@ -788,12 +814,14 @@ struct D64Parser {
 
     // MARK: - Rename File
 
-    static func renameFile(in bytes: [UInt8], file: D64File, newName: String) -> [UInt8]? {
+    /// Rename the file at the given directory-order index (0-based among non-empty entries).
+    static func renameFileAtIndex(in bytes: [UInt8], index: Int, newName: String) -> [UInt8]? {
         guard let format = DiskFormat.detect(size: bytes.count) else { return nil }
         var b = bytes
         var dirTrackNum  = UInt8(format.dirTrack)
         var dirSectorNum = UInt8(format.dirSector)
         var visited   = Set<String>()
+        var current   = 0
 
         while dirTrackNum != 0 {
             let key = "\(dirTrackNum):\(dirSectorNum)"
@@ -805,14 +833,12 @@ struct D64Parser {
             for entry in 0..<8 {
                 let base = sectorOff + 2 + (entry * 32)
                 if b[base] == 0x00 { continue }
-                let fTrack  = b[base + 1]
-                let fSector = b[base + 2]
-                let name    = petsciiToString(b[(base + 3)..<(base + 19)])
-                if name == file.filename && fTrack == file.track && fSector == file.sector {
-                    let newBytes = Array(newName.uppercased().utf8)
+                if current == index {
+                    let newBytes = Array(stringToPetscii(newName).prefix(16))
                     for i in 0..<16 { b[base + 3 + i] = i < newBytes.count ? newBytes[i] : 0xA0 }
                     return b
                 }
+                current += 1
             }
             dirTrackNum  = nTrack
             dirSectorNum = nSector

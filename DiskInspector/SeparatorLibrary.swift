@@ -60,31 +60,31 @@ struct SeparatorLibrary {
         // These are the building blocks for creating boxes/frames
         list.append(SeparatorPattern(
             name: "Top Frame",
-            rawBytes: [0x70] + Array(repeating: UInt8(0xC0), count: 14) + [0x6E],
+            rawBytes: [0xB0] + Array(repeating: UInt8(0x60), count: 14) + [0xAE],
+            category: "Frames"
+        ))
+        list.append(SeparatorPattern(
+            name: "Middle Frame",
+            rawBytes: [0xAB] + Array(repeating: UInt8(0x63), count: 14) + [0xB3],
             category: "Frames"
         ))
         list.append(SeparatorPattern(
             name: "Bottom Frame",
-            rawBytes: [0x6D] + Array(repeating: UInt8(0xC0), count: 14) + [0x7D],
+            rawBytes: [0xAD] + Array(repeating: UInt8(0x60), count: 14) + [0xBD],
             category: "Frames"
         ))
         list.append(SeparatorPattern(
             name: "Side Frame",
-            rawBytes: [0x7D] + Array(repeating: UInt8(0x20), count: 14) + [0x7D],
-            category: "Frames"
-        ))
-        list.append(SeparatorPattern(
-            name: "Divider Frame",
-            rawBytes: [0x6B] + Array(repeating: UInt8(0xC0), count: 14) + [0x73],
-            category: "Frames"
-        ))
-        list.append(SeparatorPattern(
-            name: "Horizontal Line",
-            rawBytes: Array(repeating: UInt8(0xC0), count: 16),
+            rawBytes: [0x62] + Array(repeating: UInt8(0x20), count: 14) + [0x62],
             category: "Frames"
         ))
 
         // ── Lines ──
+        list.append(SeparatorPattern(
+            name: "Horizontal Line",
+            rawBytes: Array(repeating: UInt8(0xC0), count: 16),
+            category: "Lines"
+        ))
         list.append(SeparatorPattern(
             name: "Dashes",
             rawBytes: Array(repeating: UInt8(0x2D), count: 16),
@@ -105,24 +105,6 @@ struct SeparatorLibrary {
             rawBytes: Array(repeating: UInt8(0x2E), count: 16),
             category: "Lines"
         ))
-
-        // ── Block Graphics ──
-        list.append(SeparatorPattern(
-            name: "Left Half Blocks",
-            rawBytes: Array(repeating: UInt8(0x61), count: 16),
-            category: "Blocks"
-        ))
-        list.append(SeparatorPattern(
-            name: "Upper Half Blocks",
-            rawBytes: Array(repeating: UInt8(0x62), count: 16),
-            category: "Blocks"
-        ))
-        list.append(SeparatorPattern(
-            name: "Checker Pattern",
-            rawBytes: (0..<16).map { $0 % 2 == 0 ? UInt8(0x66) : UInt8(0x7C) },
-            category: "Blocks"
-        ))
-
         // ── Decorative ──
         list.append(SeparatorPattern(
             name: "Ball Line",
@@ -165,7 +147,7 @@ struct SeparatorLibrary {
         // ── Blank ──
         list.append(SeparatorPattern(
             name: "Blank Line",
-            rawBytes: [0x20],
+            rawBytes: Array(repeating: UInt8(0x20), count: 16),
             category: "Spacing"
         ))
 

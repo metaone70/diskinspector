@@ -8,6 +8,91 @@ extension Color {
     static let c64LightBlue = Color(red: 0.467, green: 0.427, blue: 0.816)
 }
 
+// MARK: - C64-styled rename text field
+
+/// NSTextField wrapper with white cursor, white text, and visible selection on c64Blue background.
+struct C64TextField: NSViewRepresentable {
+    @Binding var text: String
+    let fontSize: CGFloat
+    var onSubmit: () -> Void
+    var onEscape: () -> Void
+
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField()
+        field.stringValue = text
+        field.font = NSFont(name: "C64 Pro Mono", size: fontSize)
+        field.textColor = .white
+        field.backgroundColor = NSColor(Color.c64Blue)
+        field.isBordered = false
+        field.isBezeled = false
+        field.focusRingType = .none
+        field.drawsBackground = true
+        field.isEditable = true
+        field.isSelectable = true
+        field.delegate = context.coordinator
+        field.lineBreakMode = .byClipping
+        field.cell?.isScrollable = true
+        field.cell?.wraps = false
+
+        // Make the field first responder after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            field.window?.makeFirstResponder(field)
+            // Select all text so the user can start typing immediately
+            field.currentEditor()?.selectAll(nil)
+            // Set cursor (insertion point) color to white
+            if let editor = field.currentEditor() as? NSTextView {
+                editor.insertionPointColor = .white
+                editor.selectedTextAttributes = [
+                    .backgroundColor: NSColor.white.withAlphaComponent(0.3),
+                    .foregroundColor: NSColor.white
+                ]
+            }
+        }
+        return field
+    }
+
+    func updateNSView(_ field: NSTextField, context: Context) {
+        if field.stringValue != text {
+            field.stringValue = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    class Coordinator: NSObject, NSTextFieldDelegate {
+        let parent: C64TextField
+        init(_ parent: C64TextField) { self.parent = parent }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let field = obj.object as? NSTextField else { return }
+            parent.text = field.stringValue
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy sel: Selector) -> Bool {
+            if sel == #selector(NSResponder.insertNewline(_:)) {
+                parent.onSubmit()
+                return true
+            }
+            if sel == #selector(NSResponder.cancelOperation(_:)) {
+                parent.onEscape()
+                return true
+            }
+            return false
+        }
+
+        // Re-apply cursor/selection colors when the field editor activates
+        func controlTextDidBeginEditing(_ obj: Notification) {
+            guard let field = obj.object as? NSTextField,
+                  let editor = field.currentEditor() as? NSTextView else { return }
+            editor.insertionPointColor = .white
+            editor.selectedTextAttributes = [
+                .backgroundColor: NSColor.white.withAlphaComponent(0.3),
+                .foregroundColor: NSColor.white
+            ]
+        }
+    }
+}
+
 final class SelectionState: ObservableObject {
     @Published var selectedKeys: Set<String> = []
     @Published var lastTappedKey: String?    = nil
@@ -647,20 +732,23 @@ struct DiskWindowView: View {
                 .frame(width: colBlocks, height: lineHeight, alignment: .leading)
 
             if isRenaming {
-                TextField("", text: $renameText)
-                    .font(.custom("C64 Pro Mono", size: fontSize))
-                    .foregroundColor(.white)
-                    .background(Color.c64Blue)
-                    .frame(width: colName, height: lineHeight)
-                    .textFieldStyle(.plain)
-                    .focused($renameFieldFocused)
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                            renameFieldFocused = true
-                        }
-                    }
-                    .onSubmit { commitRename() }
-                    .onExitCommand { renamingID = nil }
+                HStack(spacing: 0) {
+                    Text("\"")
+                        .font(.custom("C64 Pro Mono", size: fontSize))
+                        .foregroundColor(.white)
+                    C64TextField(
+                        text: $renameText,
+                        fontSize: fontSize,
+                        onSubmit: { commitRename() },
+                        onEscape: { renamingID = nil }
+                    )
+                    Text("\"")
+                        .font(.custom("C64 Pro Mono", size: fontSize))
+                        .foregroundColor(.white)
+                    Spacer(minLength: 0)
+                }
+                .background(Color.c64Blue)
+                .frame(width: colName, height: lineHeight)
             } else {
                 Text(name)
                     .font(.custom("C64 Pro Mono", size: fontSize))
@@ -858,12 +946,12 @@ struct DiskWindowView: View {
 
     func commitRename() {
         guard let id = renamingID,
-              let file = disk.files.first(where: { $0.id == id }),
+              let fileIndex = disk.files.firstIndex(where: { $0.id == id }),
               !renameText.isEmpty else {
             renamingID = nil
             return
         }
-        document.renameFile(file, to: renameText)
+        document.renameFileAtIndex(fileIndex, to: renameText)
         renamingID = nil
     }
 

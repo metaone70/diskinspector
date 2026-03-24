@@ -25,7 +25,7 @@ Drag **Disk Inspector.app** to your **Applications** folder.
 - Hex editor with direct byte editing and save to disk
 - BASIC listing viewer (v2.0 and v7.0 detokenizer)
 - Visual BAM map with sector-level view
-- Separator library with 21 built-in PETSCII patterns and custom separator support
+- Separator library with 17 built-in PETSCII patterns, drag-and-drop, and custom separator support
 - Disk integrity validation
 - Export directory as text or styled HTML
 - Launch disks and files directly in VICE emulator with keyboard shortcuts
