@@ -186,6 +186,12 @@ struct DiskWindowView: View {
         .onAppear {
             resizeWindow()
             setupDeleteKeyMonitor()
+            // Register selection state so Separators window can insert after selected file
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                if let window = NSApplication.shared.keyWindow {
+                    DocumentRegistry.shared.registerSelection(window: window, selection: selection)
+                }
+            }
         }
         .onDisappear {
             removeDeleteKeyMonitor()

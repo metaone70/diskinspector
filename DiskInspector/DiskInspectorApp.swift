@@ -7,18 +7,28 @@ final class DocumentRegistry {
     static let shared = DocumentRegistry()
     private init() {}
 
-    private var map: [ObjectIdentifier: D64Document] = [:]
+    private var docMap: [ObjectIdentifier: D64Document] = [:]
+    private var selMap: [ObjectIdentifier: SelectionState] = [:]
 
     func register(window: NSWindow, document: D64Document) {
-        map[ObjectIdentifier(window)] = document
+        docMap[ObjectIdentifier(window)] = document
+    }
+
+    func registerSelection(window: NSWindow, selection: SelectionState) {
+        selMap[ObjectIdentifier(window)] = selection
     }
 
     func unregister(window: NSWindow) {
-        map.removeValue(forKey: ObjectIdentifier(window))
+        docMap.removeValue(forKey: ObjectIdentifier(window))
+        selMap.removeValue(forKey: ObjectIdentifier(window))
     }
 
     func document(for window: NSWindow) -> D64Document? {
-        map[ObjectIdentifier(window)]
+        docMap[ObjectIdentifier(window)]
+    }
+
+    func selection(for window: NSWindow) -> SelectionState? {
+        selMap[ObjectIdentifier(window)]
     }
 }
 
@@ -96,7 +106,8 @@ struct DiskInspectorApp: App {
                     guard let window = NSApplication.shared.keyWindow,
                           let doc = DocumentRegistry.shared.document(for: window)
                     else { return }
-                    SeparatorLibraryWindow.open(document: doc)
+                    let sel = DocumentRegistry.shared.selection(for: window)
+                    SeparatorLibraryWindow.open(document: doc, selection: sel)
                 }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
             }

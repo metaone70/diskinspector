@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import UniformTypeIdentifiers
 
 // MARK: - Separator Pattern
 
@@ -35,34 +36,55 @@ struct SeparatorPattern: Identifiable {
 struct SeparatorLibrary {
 
     // PETSCII graphics byte reference:
-    // Bytes $60-$7F and $C0-$DF map to C64 graphics via PUA in C64 Pro Mono.
-    // Bytes $20-$5F map to ASCII (letters/symbols) — NOT graphics!
+    // Bytes $60-$7F and $C0-$DF → PUA graphics in C64 Pro Mono
+    // Bytes $20-$5F → ASCII (letters/symbols, NOT graphics)
     //
     // $C0/$60 = ─  horizontal line
     // $DD/$7D = │  vertical line
-    // $70     = ┘  corner lower-right (screen $50)
-    // $6E     = ┐  corner (screen $4E)
-    // $6D     = └  corner (screen $4D)
-    // $6B     = ┌  corner (screen $4B)
-    // $73     = ├  left-T (screen $53 = heart)
+    // $70     = ┘  corner
+    // $6E     = ┐  corner
+    // $6D     = └  corner
+    // $6B     = ┌  corner
+    // $73     = ├  left-T / heart
+    // $7B     = ┼  cross
     // $71     = ●  ball/circle
-    // $73     = ♥  heart
     // $61     = ♠  spade
     // $78     = ♣  club
     // $7A     = ♦  diamond
-    // $7B     = ┼  cross
-    // $62     = ▌  left-half block
-    // $61     = ▐  right-half block (or spade, depends on charset)
+    // $62     = ▌  half block
 
     static let patterns: [SeparatorPattern] = {
         var list: [SeparatorPattern] = []
 
-        // ── Lines ──
+        // ── Frame Parts (DirMaster-style, at the top) ──
+        // These are the building blocks for creating boxes/frames
+        list.append(SeparatorPattern(
+            name: "Top Frame",
+            rawBytes: [0x70] + Array(repeating: UInt8(0xC0), count: 14) + [0x6E],
+            category: "Frames"
+        ))
+        list.append(SeparatorPattern(
+            name: "Bottom Frame",
+            rawBytes: [0x6D] + Array(repeating: UInt8(0xC0), count: 14) + [0x7D],
+            category: "Frames"
+        ))
+        list.append(SeparatorPattern(
+            name: "Side Frame",
+            rawBytes: [0x7D] + Array(repeating: UInt8(0x20), count: 14) + [0x7D],
+            category: "Frames"
+        ))
+        list.append(SeparatorPattern(
+            name: "Divider Frame",
+            rawBytes: [0x6B] + Array(repeating: UInt8(0xC0), count: 14) + [0x73],
+            category: "Frames"
+        ))
         list.append(SeparatorPattern(
             name: "Horizontal Line",
             rawBytes: Array(repeating: UInt8(0xC0), count: 16),
-            category: "Lines"
+            category: "Frames"
         ))
+
+        // ── Lines ──
         list.append(SeparatorPattern(
             name: "Dashes",
             rawBytes: Array(repeating: UInt8(0x2D), count: 16),
@@ -82,33 +104,6 @@ struct SeparatorLibrary {
             name: "Dots",
             rawBytes: Array(repeating: UInt8(0x2E), count: 16),
             category: "Lines"
-        ))
-
-        // ── Box Drawing ──
-        list.append(SeparatorPattern(
-            name: "Top Border",
-            rawBytes: [0x70] + Array(repeating: UInt8(0xC0), count: 14) + [0x6E],
-            category: "Borders"
-        ))
-        list.append(SeparatorPattern(
-            name: "Bottom Border",
-            rawBytes: [0x6D] + Array(repeating: UInt8(0xC0), count: 14) + [0x7D],
-            category: "Borders"
-        ))
-        list.append(SeparatorPattern(
-            name: "Middle Border",
-            rawBytes: [0x6B] + Array(repeating: UInt8(0xC0), count: 14) + [0x73],
-            category: "Borders"
-        ))
-        list.append(SeparatorPattern(
-            name: "Cross Border",
-            rawBytes: [0x7B] + Array(repeating: UInt8(0xC0), count: 14) + [0x7B],
-            category: "Borders"
-        ))
-        list.append(SeparatorPattern(
-            name: "Vertical Sides",
-            rawBytes: [0x7D] + Array(repeating: UInt8(0x20), count: 14) + [0x7D],
-            category: "Borders"
         ))
 
         // ── Block Graphics ──
@@ -147,11 +142,6 @@ struct SeparatorLibrary {
         list.append(SeparatorPattern(
             name: "Club Line",
             rawBytes: Array(repeating: UInt8(0x78), count: 16),
-            category: "Decorative"
-        ))
-        list.append(SeparatorPattern(
-            name: "Spade Line",
-            rawBytes: Array(repeating: UInt8(0x61), count: 16),
             category: "Decorative"
         ))
         list.append(SeparatorPattern(
@@ -233,8 +223,11 @@ class CustomSeparators: ObservableObject {
 // MARK: - Separator Library Window
 
 struct SeparatorLibraryWindow {
-    static func open(document: D64Document) {
-        let view = NSHostingController(rootView: SeparatorLibraryView(document: document))
+    /// Open the separator library. Pass the selection state so inserts go after the selected file.
+    static func open(document: D64Document, selection: SelectionState? = nil) {
+        let view = NSHostingController(
+            rootView: SeparatorLibraryView(document: document, selection: selection)
+        )
         let window = NSWindow(contentViewController: view)
         window.title = "Separators"
         window.styleMask = [.titled, .closable, .resizable]
@@ -248,10 +241,11 @@ struct SeparatorLibraryWindow {
     }
 }
 
-// MARK: - Separator Library View (matches main program styling)
+// MARK: - Separator Library View
 
 struct SeparatorLibraryView: View {
     let document: D64Document
+    let selection: SelectionState?
     @ObservedObject private var customSeparators = CustomSeparators.shared
     @State private var selectedID: UUID?
     @State private var showingCustomEditor = false
@@ -336,7 +330,7 @@ struct SeparatorLibraryView: View {
 
     func separatorRow(_ pattern: SeparatorPattern) -> some View {
         let isSelected = selectedID == pattern.id
-        return HStack(spacing: 0) {
+        let row = HStack(spacing: 0) {
             Text("0   ")
                 .font(.custom(monoFont, size: 14))
                 .foregroundColor(isSelected ? .white : Color.c64Blue)
@@ -362,19 +356,51 @@ struct SeparatorLibraryView: View {
         .onTapGesture {
             selectedID = pattern.id
         }
+
+        // Drag support — drag the separator as a D64File to the main directory window
+        let d64file = pattern.toD64File()
+        return row.onDrag {
+            let provider = NSItemProvider()
+            if let encoded = try? JSONEncoder().encode(d64file) {
+                provider.registerDataRepresentation(
+                    forTypeIdentifier: UTType.d64File.identifier,
+                    visibility: .all
+                ) { completion in
+                    completion(encoded, nil)
+                    return nil
+                }
+            }
+            return provider
+        }
+    }
+
+    /// Find the directory slot index to insert AFTER the selected file in the main window
+    private func insertionTargetIndex() -> Int? {
+        guard let sel = selection, let lastIdx = sel.lastTappedIndex() else { return nil }
+        guard let disk = D64Parser.parse(data: document.data) else { return nil }
+        guard lastIdx < disk.files.count else { return nil }
+        let targetFile = disk.files[lastIdx]
+        guard let dirIdx = D64Parser.directoryIndex(
+            in: [UInt8](document.data), forFile: targetFile
+        ) else { return nil }
+        return dirIdx + 1  // insert AFTER the selected file
     }
 
     func insertSelected() {
         guard let sel = selectedID,
               let pattern = allPatterns.first(where: { $0.id == sel }) else { return }
-        document.injectFile(pattern.toD64File())
+        let target = insertionTargetIndex()
+        document.injectFile(pattern.toD64File(), at: target)
     }
 
     func insertSelectedMultiple(_ count: Int) {
         guard let sel = selectedID,
               let pattern = allPatterns.first(where: { $0.id == sel }) else { return }
+        var target = insertionTargetIndex()
         for _ in 0..<count {
-            document.injectFile(pattern.toD64File())
+            document.injectFile(pattern.toD64File(), at: target)
+            // Advance target so subsequent inserts go in order
+            if let t = target { target = t + 1 }
         }
     }
 
