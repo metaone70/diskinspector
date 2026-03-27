@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4
+
+### New Features
+- Support for opening T64 tape archive and LNX Lynx archive files (read-only)
+- Support for opening G64 raw GCR disk images (VICE format) — read-only, directory listing + Track Map view
+- Support for opening NIB raw GCR disk images (NibTools/MNIB format) — read-only, directory listing + Track Map view
+- Track Map archivist view for G64/NIB: per-track sector count, checksum errors, sync count, raw GCR length, and copy-protection indicators (▤ TRACKS button)
+- BAM map and disk validation available for G64/NIB images (operates on the decoded virtual D64)
+- Free blocks count shown for G64/NIB images
+- G64/NIB disks can be launched in VICE directly from the context menu; MNIB files are automatically converted to D64 for VICE compatibility
+
+
 ## v1.3
 
 ### New Features
@@ -13,13 +25,6 @@
 - Arrow key navigation in directory listing (Shift+Arrow for multi-select)
 - Tighter directory line spacing for authentic C64 screen look
 
-### Bug Fixes
-- Disabled auto-save — changes are only written to disk via explicit Save (Cmd-S) or Save As (Cmd-Shift-S)
-- Fixed separator library inserting into wrong window when multiple disks are open
-- Fixed renaming PETSCII separator files corrupting the first characters (UTF-8 vs PETSCII encoding)
-- Fixed renaming always targeting the first match when multiple identical files exist (now uses directory index)
-- Fixed rename cursor being invisible on dark blue background (white insertion point and selection highlight)
-- Fixed disk rename double-click focusing the ID field instead of the name field
 
 ## v1.2
 

@@ -1,4 +1,4 @@
-# Disk Inspector v1.3
+# Disk Inspector v1.4
 
 **A Commodore 64/128 disk image editor for macOS**
 
@@ -12,9 +12,15 @@ Drag **Disk Inspector.app** to your **Applications** folder.
 
 ## Supported Formats
 
-- **D64** — 1541 single-sided (170 KB, 35 tracks)
-- **D71** — 1571 double-sided (340 KB, 70 tracks)
-- **D81** — 1581 (800 KB, 80 tracks)
+| Format | Type | Access |
+|--------|------|--------|
+| D64 | 1541 single-sided (170 KB, 35 tracks) | Read / Write |
+| D71 | 1571 double-sided (340 KB, 70 tracks) | Read / Write |
+| D81 | 1581 (800 KB, 80 tracks) | Read / Write |
+| T64 | C64S tape archive | Read only |
+| LNX | Lynx archive | Read only |
+| G64 | Raw GCR disk image (VICE format) | Read only |
+| NIB | Raw GCR disk image (NibTools/MNIB format) | Read only |
 
 ## Features
 
@@ -24,12 +30,13 @@ Drag **Disk Inspector.app** to your **Applications** folder.
 - Drag and drop files between multiple open disks
 - Hex editor with direct byte editing and save to disk
 - BASIC listing viewer (v2.0 and v7.0 detokenizer)
-- Visual BAM map with sector-level view
+- Visual BAM map with sector-level view (including G64/NIB)
+- Disk integrity validation (including G64/NIB)
 - Separator library with 17 built-in PETSCII patterns, drag-and-drop, and custom separator support
-- Disk integrity validation
 - Export directory as text or styled HTML
 - Launch disks and files directly in VICE emulator with keyboard shortcuts
 - Import/export files to and from Mac filesystem
+- Track Map archivist view for G64/NIB: per-track GCR analysis, error counts, copy-protection indicators
 
 ## VICE Integration
 
@@ -38,6 +45,8 @@ To use the VICE emulator integration:
 2. Browse to your x64sc and x128 binaries
 3. Right-click any file → **Run File in VICE** or **Open Disk in VICE**
 4. Or use **Cmd-R** / **Cmd-Shift-R** to launch the selected file directly
+
+> G64 files are passed to VICE directly. MNIB/NIB files are automatically converted to D64 before launching.
 
 ## Separator Library
 

@@ -165,7 +165,7 @@ struct AboutView: View {
                 .font(.custom(monoFont, size: 18))
                 .foregroundColor(Color.c64Blue)
 
-            Text("VERSION 1.3")
+            Text("VERSION 1.4")
                 .font(.custom(monoFont, size: 11))
                 .foregroundColor(Color.c64LightBlue)
 
@@ -184,6 +184,10 @@ struct AboutView: View {
             Text("D64 · D71 · D81")
                 .font(.custom(monoFont, size: 12))
                 .foregroundColor(Color.c64LightBlue)
+
+            Text("T64 · LNX · G64 · NIB")
+                .font(.custom(monoFont, size: 11))
+                .foregroundColor(Color.c64LightBlue.opacity(0.7))
 
             Spacer().frame(height: 4)
 

@@ -8,9 +8,9 @@
 	<key>CFBundleName</key>
 	<string>Disk Inspector</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.3</string>
+	<string>1.4</string>
 	<key>CFBundleVersion</key>
-	<string>1.3</string>
+	<string>1.4</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 by metesev</string>
 	<!-- Bundle the C64 Pro Mono font inside the app — no system install needed -->
@@ -86,6 +86,78 @@
 			<key>UTTypeTagSpecification</key>
 			<dict/>
 		</dict>
+		<!-- T64 Tape Archive -->
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.diskinspector.t64</string>
+			<key>UTTypeDescription</key>
+			<string>C64 Tape Archive (T64)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>t64</string>
+				</array>
+			</dict>
+		</dict>
+		<!-- LNX Lynx Archive -->
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.diskinspector.lnx</string>
+			<key>UTTypeDescription</key>
+			<string>C64 Lynx Archive (LNX)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>lnx</string>
+				</array>
+			</dict>
+		</dict>
+		<!-- G64 Raw GCR Disk Image -->
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.diskinspector.g64</string>
+			<key>UTTypeDescription</key>
+			<string>C64 Raw GCR Disk Image (G64)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>g64</string>
+				</array>
+			</dict>
+		</dict>
+		<!-- NIB Raw GCR Disk Image — uses com.diskinspector.c64nib to avoid conflict with macOS NIB files -->
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.diskinspector.c64nib</string>
+			<key>UTTypeDescription</key>
+			<string>C64 Raw GCR Disk Image (NIB)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>nib</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 	<!-- Document Types — tells macOS which files this app opens -->
 	<key>CFBundleDocumentTypes</key>
@@ -124,6 +196,55 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>com.diskinspector.d81</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>C64 Tape Archive (T64)</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.diskinspector.t64</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>C64 Lynx Archive (LNX)</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.diskinspector.lnx</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>C64 Raw GCR Disk Image (G64)</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.diskinspector.g64</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>C64 Raw GCR Disk Image (NIB)</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<!-- Alternate rank to avoid conflict with macOS Interface Builder .nib files -->
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.diskinspector.c64nib</string>
 			</array>
 		</dict>
 	</array>

@@ -259,6 +259,20 @@ struct VICELauncher {
             return
         }
 
+        // MNIB files can't be loaded by VICE directly — convert to a virtual D64 temp file first
+        if document.diskFormat == .nib,
+           let virtualD64 = NIBParser.buildVirtualD64(from: document.data) {
+            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("diskinspector_vice.d64")
+            do {
+                try virtualD64.write(to: tempURL)
+                launchBinary(binary, args: ["-8", tempURL.path])
+            } catch {
+                showLaunchError(path: binary, error: error)
+            }
+            return
+        }
+
         // -8 attaches disk to drive 8
         launchBinary(binary, args: ["-8", diskURL.path])
     }
@@ -282,9 +296,33 @@ struct VICELauncher {
             return
         }
 
-        // -autostart with "disk:filename" loads and runs the file
-        // VICE expects lowercase — CBM DOS stores names in shifted PETSCII
-        let autostartArg = "\(diskURL.path):\(file.filename.lowercased())"
+        // MNIB files can't be loaded by VICE directly — convert to a virtual D64 temp file first
+        let targetURL: URL
+        if document.diskFormat == .nib,
+           let virtualD64 = NIBParser.buildVirtualD64(from: document.data) {
+            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("diskinspector_vice.d64")
+            do {
+                try virtualD64.write(to: tempURL)
+                targetURL = tempURL
+            } catch {
+                showLaunchError(path: binary, error: error)
+                return
+            }
+        } else {
+            targetURL = diskURL
+        }
+
+        // -autostart with "disk:filename" loads and runs the file.
+        // VICE expects the filename in the host encoding (UTF-8 on macOS).
+        // PETSCII special chars are stored as Unicode PUA (U+E0xx); their 3-byte UTF-8
+        // sequences confuse VICE, which reads them as three separate characters.
+        // Replace each PUA char with '?' — CBM DOS treats it as a single-char wildcard
+        // so the pattern still matches the correct file by both content and length.
+        let safeFilename = file.filename.unicodeScalars.map { scalar -> String in
+            scalar.value >= 0xE000 && scalar.value <= 0xE0FF ? "?" : String(scalar)
+        }.joined().lowercased()
+        let autostartArg = "\(targetURL.path):\(safeFilename)"
         launchBinary(binary, args: ["-autostart", autostartArg])
     }
 
@@ -336,14 +374,26 @@ struct VICELauncher {
         return nil
     }
 
-    /// Launch a binary directly with arguments
+    /// Launch a binary directly with arguments.
+    /// When the binary lives inside a macOS .app bundle, uses `open -n` to force a new
+    /// VICE instance instead of bringing an existing one to the front.
     private static func launchBinary(_ binaryPath: String, args: [String]) {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: binaryPath)
-        process.arguments = args
+
+        if binaryPath.contains(".app/Contents/") {
+            // Derive the .app path from the inner binary path
+            // e.g. "/Applications/VICE/x64sc.app/Contents/MacOS/x64sc" → "/Applications/VICE/x64sc.app"
+            let appPath = binaryPath.components(separatedBy: ".app/Contents/").first! + ".app"
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-n", "-a", appPath, "--args"] + args
+        } else {
+            process.executableURL = URL(fileURLWithPath: binaryPath)
+            process.arguments = args
+            process.currentDirectoryURL = URL(fileURLWithPath: binaryPath).deletingLastPathComponent()
+        }
+
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
-        process.currentDirectoryURL = URL(fileURLWithPath: binaryPath).deletingLastPathComponent()
         do {
             try process.run()
         } catch {

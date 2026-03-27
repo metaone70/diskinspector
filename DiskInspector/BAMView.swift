@@ -177,6 +177,7 @@ struct BAMAnalyzer {
         case .d64: sectors.insert("18:0")
         case .d71: sectors.insert("18:0"); sectors.insert("53:0")
         case .d81: sectors.insert("40:0"); sectors.insert("40:1"); sectors.insert("40:2")
+        case .t64, .lnx, .g64, .nib: break
         }
         return sectors
     }
@@ -186,12 +187,13 @@ struct BAMAnalyzer {
 
 struct BAMViewWindow {
     static func open(document: D64Document) {
-        guard let result = BAMAnalyzer.analyze(data: document.data) else { return }
-        let disk = D64Parser.parse(data: document.data)
+        let d64Data = document.analysableData
+        guard let result = BAMAnalyzer.analyze(data: d64Data) else { return }
+        let disk = D64Parser.parse(data: d64Data)
         let diskName = disk?.diskName ?? "DISK"
 
         let bamState = BAMViewState(result: result)
-        let view = NSHostingController(rootView: BAMMapView(state: bamState, document: document))
+        let view = NSHostingController(rootView: BAMMapView(state: bamState, diskData: d64Data, document: document))
         let window = NSWindow(contentViewController: view)
         window.title = "\(diskName.uppercased()) — BAM Map"
         window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
@@ -233,6 +235,7 @@ class BAMViewState: ObservableObject {
 
 struct BAMMapView: View {
     @ObservedObject var state: BAMViewState
+    let diskData: Data       // D64-format data (virtual D64 for G64/NIB, raw data otherwise)
     let document: D64Document
     private let monoFont = "C64 Pro Mono"
     private let cellSize: CGFloat = 14
@@ -450,11 +453,11 @@ struct BAMMapView: View {
         let parts = key.split(separator: ":").compactMap { Int($0) }
         guard parts.count == 2 else { return }
         let track = parts[0], sector = parts[1]
-        guard let format = DiskFormat.detect(size: document.data.count) else { return }
+        guard let format = DiskFormat.detect(size: diskData.count) else { return }
         let offset = D64Parser.offset(track: track, sector: sector, format: format)
-        guard offset + 256 <= document.data.count else { return }
+        guard offset + 256 <= diskData.count else { return }
 
-        let sectorData = Data(document.data[offset..<offset + 256])
+        let sectorData = Data(diskData[offset..<offset + 256])
         let sectorFile = D64File(
             filename: String(format: "T%d/S%d", track, sector),
             fileType: "RAW",

@@ -20,8 +20,8 @@ class D64Document: ReferenceFileDocument {
         // Include our declared types AND any system/third-party types already
         // registered for these extensions — so the Open dialog accepts files
         // regardless of which UTType the system has assigned to them.
-        var types: [UTType] = [.d64Disk, .d71Disk, .d81Disk]
-        for ext in ["d64", "d71", "d81"] {
+        var types: [UTType] = [.d64Disk, .d71Disk, .d81Disk, .t64Disk, .lnxDisk, .g64Disk, .nibDisk]
+        for ext in ["d64", "d71", "d81", "t64", "lnx", "g64", "nib"] {
             if let systemType = UTType(filenameExtension: ext),
                !types.contains(systemType) {
                 types.append(systemType)
@@ -31,6 +31,7 @@ class D64Document: ReferenceFileDocument {
     }
 
     static var writableContentTypes: [UTType] {
+        // Archive formats are read-only — exclude them from writable types
         [.d64Disk, .d71Disk, .d81Disk]
     }
 
@@ -38,7 +39,24 @@ class D64Document: ReferenceFileDocument {
         if let fileData = configuration.file.regularFileContents {
             data = fileData
             savedSnapshot = fileData
-            diskFormat = DiskFormat.detect(size: fileData.count) ?? .d64
+            // Detect format: magic bytes first, then content type hint, then size
+            if T64Parser.isMagic(fileData) {
+                diskFormat = .t64
+            } else if G64Parser.isMagic(fileData) {
+                diskFormat = .g64
+            } else if NIBParser.isMNIBMagic(fileData) {
+                diskFormat = .nib
+            } else if configuration.contentType == .lnxDisk ||
+                      configuration.contentType.identifier.hasSuffix(".lnx") ||
+                      configuration.contentType.conforms(to: .lnxDisk) {
+                diskFormat = .lnx
+            } else if configuration.contentType == .nibDisk ||
+                      configuration.contentType.identifier.hasSuffix(".c64nib") ||
+                      configuration.contentType.conforms(to: .nibDisk) {
+                diskFormat = .nib
+            } else {
+                diskFormat = DiskFormat.detect(size: fileData.count) ?? .d64
+            }
         } else {
             let blank = D64Document.createBlankD64(name: "NEW DISK", id: "00")
             data = blank
@@ -54,10 +72,22 @@ class D64Document: ReferenceFileDocument {
         diskFormat = .d64
     }
 
+    // MARK: - Analysable data
+
+    /// Returns D64-format data suitable for BAM analysis and validation.
+    /// For G64/NIB the raw GCR is decoded to a virtual D64; for other formats returns data as-is.
+    var analysableData: Data {
+        switch diskFormat {
+        case .g64: return G64Parser.buildVirtualD64(from: data) ?? data
+        case .nib: return NIBParser.buildVirtualD64(from: data) ?? data
+        default:   return data
+        }
+    }
+
     // MARK: - Disk display name
 
     var diskDisplayName: String {
-        if let disk = D64Parser.parse(data: data) {
+        if let disk = D64Parser.parse(data: data, formatHint: diskFormat) {
             return disk.diskName.uppercased()
         }
         return "DiskInspector"
@@ -264,6 +294,7 @@ class D64Document: ReferenceFileDocument {
     // MARK: - Disk operations
 
     func renameDisk(name: String, id: String) {
+        guard !diskFormat.isArchive else { return }
         saveUndo()
         guard let bytes = D64Parser.renameDisk(in: [UInt8](data), name: name, id: id)
         else { undoStack.removeLast(); return }
@@ -282,11 +313,16 @@ class D64Document: ReferenceFileDocument {
         case .d64: return "d64"
         case .d71: return "d71"
         case .d81: return "d81"
+        case .t64: return "t64"
+        case .lnx: return "lnx"
+        case .g64: return "g64"
+        case .nib: return "nib"
         }
     }
 
     /// Save to the existing fileURL, or show a save panel if no URL yet
     func saveDocument() {
+        guard !diskFormat.isArchive else { return }
         if let url = fileURL ?? NSApplication.shared.keyWindow?.representedURL {
             do {
                 try data.write(to: url)
@@ -302,6 +338,7 @@ class D64Document: ReferenceFileDocument {
 
     /// Show a save panel and save to the chosen location
     func saveDocumentAs() {
+        guard !diskFormat.isArchive else { return }
         let panel = NSSavePanel()
         let filename = diskDisplayName.lowercased() + "." + fileExtension
         panel.nameFieldStringValue = filename
@@ -350,6 +387,10 @@ class D64Document: ReferenceFileDocument {
         case .d64: return .d64Disk
         case .d71: return .d71Disk
         case .d81: return .d81Disk
+        case .t64: return .t64Disk
+        case .lnx: return .lnxDisk
+        case .g64: return .g64Disk
+        case .nib: return .nibDisk
         }
     }
 
@@ -379,6 +420,7 @@ class D64Document: ReferenceFileDocument {
     // MARK: - File operations
 
     func injectFile(_ file: D64File, at targetIndex: Int? = nil) {
+        guard !diskFormat.isArchive else { return }
         saveUndo()
         guard let bytes = D64Parser.injectFile(into: [UInt8](data), file: file, at: targetIndex)
         else { undoStack.removeLast(); return }
@@ -386,6 +428,7 @@ class D64Document: ReferenceFileDocument {
     }
 
     func deleteFile(_ file: D64File) {
+        guard !diskFormat.isArchive else { return }
         saveUndo()
         guard let bytes = D64Parser.deleteFile(from: [UInt8](data), file: file)
         else { undoStack.removeLast(); return }
@@ -393,6 +436,7 @@ class D64Document: ReferenceFileDocument {
     }
 
     func deleteFileAtIndex(_ index: Int) {
+        guard !diskFormat.isArchive else { return }
         saveUndo()
         guard let bytes = D64Parser.deleteFileAtIndex(from: [UInt8](data), index: index)
         else { undoStack.removeLast(); return }
@@ -400,6 +444,7 @@ class D64Document: ReferenceFileDocument {
     }
 
     func moveFile(from sourceIndex: Int, to destinationIndex: Int) {
+        guard !diskFormat.isArchive else { return }
         saveUndo()
         guard let bytes = D64Parser.moveFile(in: [UInt8](data), from: sourceIndex, to: destinationIndex)
         else { undoStack.removeLast(); return }
@@ -407,6 +452,7 @@ class D64Document: ReferenceFileDocument {
     }
 
     func renameFileAtIndex(_ index: Int, to newName: String) {
+        guard !diskFormat.isArchive else { return }
         saveUndo()
         guard let bytes = D64Parser.renameFileAtIndex(in: [UInt8](data), index: index, newName: newName)
         else { undoStack.removeLast(); return }
@@ -419,7 +465,7 @@ class D64Document: ReferenceFileDocument {
 
     /// Write modified file data back into the disk image's sector chain
     func patchFileData(_ file: D64File, newData: Data) {
-        guard file.track != 0 else { return }
+        guard !diskFormat.isArchive, file.track != 0 else { return }
         saveUndo()
         guard let format = DiskFormat.detect(size: data.count),
               let bytes = D64Parser.writeBytesToFile(

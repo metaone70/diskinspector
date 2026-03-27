@@ -283,6 +283,7 @@ struct DiskValidator {
             sectors.insert("40:0")  // Header
             sectors.insert("40:1")  // BAM1
             sectors.insert("40:2")  // BAM2
+        case .t64, .lnx, .g64, .nib: break
         }
         return sectors
     }

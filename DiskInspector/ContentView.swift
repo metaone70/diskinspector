@@ -4,8 +4,17 @@ import AppKit
 import Combine
 
 extension Color {
-    static let c64Blue      = Color(red: 0.263, green: 0.216, blue: 0.631)
-    static let c64LightBlue = Color(red: 0.467, green: 0.427, blue: 0.816)
+    // Authentic C64 blue in light mode; lighter for readability in dark mode.
+    static let c64Blue = Color(NSColor(name: nil, dynamicProvider: { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor(red: 0.45, green: 0.50, blue: 0.90, alpha: 1.0)
+            : NSColor(red: 0.263, green: 0.216, blue: 0.631, alpha: 1.0)
+    }))
+    static let c64LightBlue = Color(NSColor(name: nil, dynamicProvider: { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor(red: 0.65, green: 0.68, blue: 0.98, alpha: 1.0)
+            : NSColor(red: 0.467, green: 0.427, blue: 0.816, alpha: 1.0)
+    }))
 }
 
 // MARK: - C64-styled rename text field
@@ -147,10 +156,10 @@ struct ContentView: View {
     @ObservedObject var document: D64Document
 
     var body: some View {
-        if let disk = D64Parser.parse(data: document.data) {
+        if let disk = D64Parser.parse(data: document.data, formatHint: document.diskFormat) {
             DiskWindowView(disk: disk, document: document)
         } else {
-            Text("Not a valid D64/D71/D81 file.")
+            Text("Not a valid disk image or archive.")
                 .font(.custom("C64 Pro Mono", size: 14))
                 .foregroundColor(Color.c64Blue)
                 .padding(20)
@@ -198,7 +207,7 @@ struct DiskWindowView: View {
         return 156 + CGFloat(conditionalRows) * 18 + 20  // +20 safety buffer
     }
         
-    var windowWidth:   CGFloat { colBlocks + colName + colType + padding * 2 + 32 }
+    var windowWidth: CGFloat { colBlocks + colName + colType + padding * 2 + 32 }
     var initialHeight: CGFloat {
         let lines = min(totalLines, maxVisibleLines)
         return CGFloat(lines) * lineHeight + padding * 2 + 8
@@ -219,6 +228,7 @@ struct DiskWindowView: View {
         }
         .frame(width: windowWidth)
         .dropDestination(for: D64File.self) { droppedFiles, _ in
+            guard !disk.format.isArchive else { return false }
             let targetIndex = droppedAtIndex
             insertionIndex = nil
             droppedAtIndex = nil
@@ -258,6 +268,7 @@ struct DiskWindowView: View {
             if !isTargeted { insertionIndex = nil }
         }
         .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
+            guard !disk.format.isArchive else { return false }
             for provider in providers {
                 provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                     guard let data = item as? Data,
@@ -284,9 +295,6 @@ struct DiskWindowView: View {
     }
 
     var infoPanel: some View {
-        let usedBlocks = disk.format.totalBlocks - disk.freeBlocks
-        let barWidth = windowWidth - padding * 2 - 20
-        let usedWidth = barWidth * CGFloat(usedBlocks) / CGFloat(disk.format.totalBlocks)
         let prg = disk.files.filter { $0.fileType == "PRG" }.count
         let seq = disk.files.filter { $0.fileType == "SEQ" }.count
         let del = disk.files.filter { $0.fileType == "DEL" }.count
@@ -301,30 +309,36 @@ struct DiskWindowView: View {
             infoRow(label: "ID    ", value: disk.diskID.uppercased())
             infoRow(label: "FORMAT", value: disk.format.displayName)
 
-            // Progress bar
-            HStack {
-                Text("USED")
-                    .font(.custom("C64 Pro Mono", size: 11))
-                    .foregroundColor(Color.c64LightBlue)
-                Spacer()
-                Text("\(usedBlocks) / \(disk.format.totalBlocks)")
-                    .font(.custom("C64 Pro Mono", size: 11))
-                    .foregroundColor(Color.c64LightBlue)
-            }
-            .frame(height: 16)
+            if !disk.format.isArchive {
+                let usedBlocks = disk.format.totalBlocks - disk.freeBlocks
+                let barWidth   = windowWidth - padding * 2 - 20
+                let usedWidth  = barWidth * CGFloat(usedBlocks) / CGFloat(disk.format.totalBlocks)
 
-            HStack(spacing: 0) {
-                Rectangle()
-                    .fill(Color.c64Blue)
-                    .frame(width: max(2, usedWidth), height: 10)
-                Rectangle()
-                    .fill(Color.c64LightBlue.opacity(0.3))
-                    .frame(width: barWidth - max(2, usedWidth), height: 10)
+                // Progress bar
+                HStack {
+                    Text("USED")
+                        .font(.custom("C64 Pro Mono", size: 11))
+                        .foregroundColor(Color.c64LightBlue)
+                    Spacer()
+                    Text("\(usedBlocks) / \(disk.format.totalBlocks)")
+                        .font(.custom("C64 Pro Mono", size: 11))
+                        .foregroundColor(Color.c64LightBlue)
+                }
+                .frame(height: 16)
+
+                HStack(spacing: 0) {
+                    Rectangle()
+                        .fill(Color.c64Blue)
+                        .frame(width: max(2, usedWidth), height: 10)
+                    Rectangle()
+                        .fill(Color.c64LightBlue.opacity(0.3))
+                        .frame(width: barWidth - max(2, usedWidth), height: 10)
+                }
+                .padding(.vertical, 4)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
             }
-            .padding(.vertical, 4)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-            
+
             infoRow(label: "PRG  ", value: "\(prg) files")
             if seq > 0 { infoRow(label: "SEQ  ", value: "\(seq) files") }
             if del > 0 { infoRow(label: "DEL  ", value: "\(del) files") }
@@ -396,7 +410,7 @@ struct DiskWindowView: View {
                 if event.keyCode == 8 && cmd {
                     if !selection.selectedKeys.isEmpty {
                         // Re-parse current disk data — don't use stale captured `disk`
-                        if let currentDisk = D64Parser.parse(data: document.data) {
+                        if let currentDisk = D64Parser.parse(data: document.data, formatHint: document.diskFormat) {
                             let filesToCopy = currentDisk.files.enumerated()
                                 .filter { selection.isSelected($0.element, at: $0.offset) }
                                 .map { $0.element }
@@ -414,7 +428,7 @@ struct DiskWindowView: View {
                         let doc = document
                         DispatchQueue.main.async {
                             for f in filesToPaste {
-                                guard let currentDisk = D64Parser.parse(data: doc.data) else { break }
+                                guard let currentDisk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat) else { break }
                                 if f.blocks <= currentDisk.freeBlocks {
                                     doc.injectFile(f)
                                 }
@@ -426,7 +440,7 @@ struct DiskWindowView: View {
                 // Cmd-A  Select All
                 if event.keyCode == 0 && cmd {
                     DispatchQueue.main.async {
-                        if let currentDisk = D64Parser.parse(data: document.data) {
+                        if let currentDisk = D64Parser.parse(data: document.data, formatHint: document.diskFormat) {
                             selection.clear()
                             for (index, file) in currentDisk.files.enumerated() {
                                 selection.select(file, at: index)
@@ -438,7 +452,7 @@ struct DiskWindowView: View {
                 // Arrow Down — select next file
                 if event.keyCode == 125 && !cmd {
                     DispatchQueue.main.async {
-                        guard let currentDisk = D64Parser.parse(data: document.data),
+                        guard let currentDisk = D64Parser.parse(data: document.data, formatHint: document.diskFormat),
                               !currentDisk.files.isEmpty else { return }
                         let lastIdx = selection.lastTappedIndex() ?? -1
                         let nextIdx = min(lastIdx + 1, currentDisk.files.count - 1)
@@ -455,7 +469,7 @@ struct DiskWindowView: View {
                 // Arrow Up — select previous file
                 if event.keyCode == 126 && !cmd {
                     DispatchQueue.main.async {
-                        guard let currentDisk = D64Parser.parse(data: document.data),
+                        guard let currentDisk = D64Parser.parse(data: document.data, formatHint: document.diskFormat),
                               !currentDisk.files.isEmpty else { return }
                         let lastIdx = selection.lastTappedIndex() ?? currentDisk.files.count
                         let prevIdx = max(lastIdx - 1, 0)
@@ -473,7 +487,7 @@ struct DiskWindowView: View {
                 // Cmd-Shift-R  Run selected file in C128 VICE
                 if event.keyCode == 15 && cmd {
                     if let lastIdx = selection.lastTappedIndex(),
-                       let currentDisk = D64Parser.parse(data: document.data),
+                       let currentDisk = D64Parser.parse(data: document.data, formatHint: document.diskFormat),
                        lastIdx < currentDisk.files.count {
                         let file = currentDisk.files[lastIdx]
                         let emulator: VICELauncher.Emulator = shift ? .c128 : .c64
@@ -496,7 +510,8 @@ struct DiskWindowView: View {
     }
 
     func canFitFile(_ file: D64File) -> Bool {
-        guard let currentDisk = D64Parser.parse(data: document.data) else { return false }
+        guard !disk.format.isArchive else { return false }
+        guard let currentDisk = D64Parser.parse(data: document.data, formatHint: document.diskFormat) else { return false }
         return file.blocks <= currentDisk.freeBlocks
     }
 
@@ -554,6 +569,7 @@ struct DiskWindowView: View {
                         .font(.custom("C64 Pro Mono", size: fontSize))
                         .foregroundColor(.white)
                         .onTapGesture(count: 2) {
+                            guard !disk.format.isArchive else { return }
                             diskNameText = disk.diskName
                             diskIDText   = disk.diskID
                             renamingDisk = true
@@ -581,6 +597,7 @@ struct DiskWindowView: View {
                     index: index
                 )
                 .dropDestination(for: D64File.self) { droppedFiles, _ in
+                    guard !disk.format.isArchive else { return false }
                     let targetIndex = droppedAtIndex
                     insertionIndex = nil
                     droppedAtIndex = nil
@@ -632,40 +649,59 @@ struct DiskWindowView: View {
 
             Spacer(minLength: 0)
 
-            // Blocks free + info toggle + validate
-            HStack(spacing: 0) {
-                Text("\(disk.freeBlocks) BLOCKS FREE.")
-                    .font(.custom("C64 Pro Mono", size: fontSize))
-                    .foregroundColor(Color.c64Blue)
-                    .frame(height: lineHeight)
-                Spacer()
-                Button(action: {
-                    let issues = DiskValidator.validate(data: document.data)
-                    ValidationWindow.open(issues: issues, diskName: disk.diskName)
-                }) {
-                    Text("✓ VALIDATE")
-                        .font(.custom("C64 Pro Mono", size: 11))
-                        .foregroundColor(Color.c64LightBlue)
+            // Blocks free (own row) + buttons row below
+            VStack(alignment: .leading, spacing: 4) {
+                if disk.format != .t64 && disk.format != .lnx {
+                    Text("\(disk.freeBlocks) BLOCKS FREE.")
+                        .font(.custom("C64 Pro Mono", size: fontSize))
+                        .foregroundColor(Color.c64Blue)
+                        .frame(height: lineHeight)
                 }
-                .buttonStyle(.plain)
-                .padding(.trailing, 12)
 
-                Button(action: {
-                    BAMViewWindow.open(document: document)
-                }) {
-                    Text("▦ BAM")
-                        .font(.custom("C64 Pro Mono", size: 11))
-                        .foregroundColor(Color.c64LightBlue)
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, 12)
+                HStack(spacing: 0) {
+                    Spacer()
+                    if disk.format != .t64 && disk.format != .lnx {
+                        Button(action: {
+                            let issues = DiskValidator.validate(data: document.analysableData)
+                            ValidationWindow.open(issues: issues, diskName: disk.diskName)
+                        }) {
+                            Text("✓ VALIDATE")
+                                .font(.custom("C64 Pro Mono", size: 11))
+                                .foregroundColor(Color.c64LightBlue)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 12)
 
-                Button(action: { showingInfo.toggle() }) {
-                    Text(showingInfo ? "▲ INFO" : "▼ INFO")
-                        .font(.custom("C64 Pro Mono", size: 11))
-                        .foregroundColor(Color.c64LightBlue)
+                        Button(action: {
+                            BAMViewWindow.open(document: document)
+                        }) {
+                            Text("▦ BAM")
+                                .font(.custom("C64 Pro Mono", size: 11))
+                                .foregroundColor(Color.c64LightBlue)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 12)
+                    }
+
+                    if disk.format == .g64 || disk.format == .nib {
+                        Button(action: {
+                            TrackMapWindow.open(disk: disk)
+                        }) {
+                            Text("▤ TRACKS")
+                                .font(.custom("C64 Pro Mono", size: 11))
+                                .foregroundColor(Color.c64LightBlue)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 12)
+                    }
+
+                    Button(action: { showingInfo.toggle() }) {
+                        Text(showingInfo ? "▲ INFO" : "▼ INFO")
+                            .font(.custom("C64 Pro Mono", size: 11))
+                            .foregroundColor(Color.c64LightBlue)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             if showingInfo {
@@ -688,21 +724,23 @@ struct DiskWindowView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Paste") {
-                for f in D64Clipboard.shared.paste() {
-                    if !canFitFile(f) {
-                        showCapacityError(filename: f.filename)
-                        continue
+            if !disk.format.isArchive {
+                Button("Paste") {
+                    for f in D64Clipboard.shared.paste() {
+                        if !canFitFile(f) {
+                            showCapacityError(filename: f.filename)
+                            continue
+                        }
+                        document.injectFile(f)
                     }
-                    document.injectFile(f)
                 }
+                .disabled(clipboard.isEmpty)
+                Divider()
+                Button("Import from Mac…") {
+                    importFromMac()
+                }
+                Divider()
             }
-            .disabled(clipboard.isEmpty)
-            Divider()
-            Button("Import from Mac…") {
-                importFromMac()
-            }
-            Divider()
             Button("Export Directory as Text…") {
                 DiskExporter.saveAsText(data: document.data, diskName: disk.diskName)
             }
@@ -861,13 +899,15 @@ struct DiskWindowView: View {
 
                 Divider()
 
-                Button("Rename") {
-                    selection.selectOnly(file, at: index)
-                    renameText = file.filename
-                    renamingID = file.id
-                }
+                if !disk.format.isArchive {
+                    Button("Rename") {
+                        selection.selectOnly(file, at: index)
+                        renameText = file.filename
+                        renamingID = file.id
+                    }
 
-                Divider()
+                    Divider()
+                }
 
                 Button("Copy") {
                     let filesToCopy = selection.selectedKeys.isEmpty ? [file] :
@@ -877,16 +917,18 @@ struct DiskWindowView: View {
                     D64Clipboard.shared.copy(filesToCopy)
                 }
 
-                Button("Paste") {
-                    for f in D64Clipboard.shared.paste() {
-                        if !canFitFile(f) {
-                            showCapacityError(filename: f.filename)
-                            continue
+                if !disk.format.isArchive {
+                    Button("Paste") {
+                        for f in D64Clipboard.shared.paste() {
+                            if !canFitFile(f) {
+                                showCapacityError(filename: f.filename)
+                                continue
+                            }
+                            document.injectFile(f)
                         }
-                        document.injectFile(f)
                     }
+                    .disabled(clipboard.isEmpty)
                 }
-                .disabled(clipboard.isEmpty)
 
                 Divider()
 
@@ -894,37 +936,41 @@ struct DiskWindowView: View {
                     exportToMac(file: file)
                 }
 
-                Divider()
+                if !disk.format.isArchive {
+                    Divider()
 
-                Button(selection.selectedKeys.count > 1 ? "Delete \(selection.selectedKeys.count) Files" : "Delete \"\(file.filename.uppercased())\"", role: .destructive) {
-                    let indices = selection.selectedKeys.isEmpty
-                        ? [index]
-                        : selection.selectedKeys
-                            .compactMap { selection.indexFromKey($0) }
-                            .sorted()
-                            .reversed()
-                    for i in indices {
-                        document.deleteFileAtIndex(i)
+                    Button(selection.selectedKeys.count > 1 ? "Delete \(selection.selectedKeys.count) Files" : "Delete \"\(file.filename.uppercased())\"", role: .destructive) {
+                        let indices = selection.selectedKeys.isEmpty
+                            ? [index]
+                            : selection.selectedKeys
+                                .compactMap { selection.indexFromKey($0) }
+                                .sorted()
+                                .reversed()
+                        for i in indices {
+                            document.deleteFileAtIndex(i)
+                        }
+                        selection.clear()
                     }
-                    selection.clear()
                 }
 
             } else {
-                Button("Paste") {
-                    for f in D64Clipboard.shared.paste() {
-                        if !canFitFile(f) {
-                            showCapacityError(filename: f.filename)
-                            continue
+                if !disk.format.isArchive {
+                    Button("Paste") {
+                        for f in D64Clipboard.shared.paste() {
+                            if !canFitFile(f) {
+                                showCapacityError(filename: f.filename)
+                                continue
+                            }
+                            document.injectFile(f)
                         }
-                        document.injectFile(f)
                     }
-                }
-                .disabled(clipboard.isEmpty)
+                    .disabled(clipboard.isEmpty)
 
-                Divider()
+                    Divider()
 
-                Button("Import from Mac…") {
-                    importFromMac()
+                    Button("Import from Mac…") {
+                        importFromMac()
+                    }
                 }
             }
         }

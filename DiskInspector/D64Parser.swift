@@ -8,64 +8,83 @@ enum DiskFormat {
     case d64
     case d71
     case d81
+    case t64
+    case lnx
+    case g64   // raw GCR (VICE format)
+    case nib   // raw GCR (NibTools format)
 
     static func detect(size: Int) -> DiskFormat? {
         switch size {
         case 174848: return .d64
         case 349696: return .d71
         case 819200: return .d81
+        case 286720: return .nib   // 35 tracks × 8192 bytes
         default:     return nil
+        }
+    }
+
+    var isArchive: Bool {
+        switch self {
+        case .t64, .lnx, .g64, .nib: return true
+        default:                      return false
         }
     }
 
     var bamTrack: Int {
         switch self {
-        case .d64, .d71: return 18
-        case .d81:       return 40
+        case .d64, .d71:               return 18
+        case .d81:                     return 40
+        case .t64, .lnx, .g64, .nib:  return 0
         }
     }
 
     var bamSector: Int {
         switch self {
-        case .d64, .d71: return 0
-        case .d81:       return 1
+        case .d64, .d71:               return 0
+        case .d81:                     return 1
+        case .t64, .lnx, .g64, .nib:  return 0
         }
     }
 
     var dirTrack: Int {
         switch self {
-        case .d64, .d71: return 18
-        case .d81:       return 40
+        case .d64, .d71:               return 18
+        case .d81:                     return 40
+        case .t64, .lnx, .g64, .nib:  return 0
         }
     }
 
     var dirSector: Int {
         switch self {
-        case .d64, .d71: return 1
-        case .d81:       return 3
+        case .d64, .d71:               return 1
+        case .d81:                     return 3
+        case .t64, .lnx, .g64, .nib:  return 0
         }
     }
 
     var totalBlocks: Int {
         switch self {
-        case .d64: return 664
-        case .d71: return 1328
-        case .d81: return 3160
+        case .d64:                     return 664
+        case .d71:                     return 1328
+        case .d81:                     return 3160
+        case .t64, .lnx, .g64, .nib:  return 0
         }
     }
 
     var totalTracks: Int {
         switch self {
-        case .d64: return 35
-        case .d71: return 70
-        case .d81: return 80
+        case .d64:                     return 35
+        case .d71:                     return 70
+        case .d81:                     return 80
+        case .t64, .lnx, .g64, .nib:  return 35
         }
     }
 
     var systemTrack: Int {
         switch self {
-        case .d64, .d71: return 18
-        case .d81:       return 40
+        case .d64, .d71:               return 18
+        case .d81:                     return 40
+        case .t64, .lnx, .g64, .nib:  return 0
         }
     }
 
@@ -74,14 +93,19 @@ enum DiskFormat {
         case .d64: return "D64"
         case .d71: return "D71"
         case .d81: return "D81"
+        case .t64: return "T64"
+        case .lnx: return "LNX"
+        case .g64: return "G64"
+        case .nib: return "NIB"
         }
     }
 
     var dosVersion: String {
         switch self {
-        case .d64: return "2A"
-        case .d71: return "2A"
-        case .d81: return "3D"
+        case .d64:                     return "2A"
+        case .d71:                     return "2A"
+        case .d81:                     return "3D"
+        case .t64, .lnx, .g64, .nib:  return ""
         }
     }
 }
@@ -145,6 +169,64 @@ extension UTType {
                                 conformingTo: .data)
     static let d81Disk = UTType(exportedAs: "com.diskinspector.d81",
                                 conformingTo: .data)
+    // Archive formats (read-only)
+    static let t64Disk = UTType(exportedAs: "com.diskinspector.t64",
+                                conformingTo: .data)
+    static let lnxDisk = UTType(exportedAs: "com.diskinspector.lnx",
+                                conformingTo: .data)
+    // Raw GCR formats (read-only)
+    static let g64Disk = UTType(exportedAs: "com.diskinspector.g64",
+                                conformingTo: .data)
+    static let nibDisk = UTType(exportedAs: "com.diskinspector.c64nib",
+                                conformingTo: .data)
+}
+
+// MARK: - GCR Track Info (G64 / NIB archivist data)
+
+struct GCRTrackInfo {
+    let trackNumber:     Double   // 1.0, 1.5, 2.0 … (half-tracks in G64)
+    let rawLength:       Int      // GCR bytes stored for this track
+    let sectorsFound:    Int      // sectors successfully decoded
+    let sectorsExpected: Int      // standard CBM sector count for this track
+    let headerErrors:    Int      // sectors with bad header checksums
+    let dataErrors:      Int      // sectors with bad data checksums
+    let syncCount:       Int      // sync marks found (incl. inter-sector syncs)
+    let hasData:         Bool     // false for G64 null-track entries
+
+    var isHalfTrack: Bool { trackNumber != trackNumber.rounded() }
+
+    var status: GCRTrackStatus {
+        guard hasData else { return .noData }
+        let totalErrors = headerErrors + dataErrors
+        if sectorsFound == 0 { return .noSectors }
+        if sectorsFound < sectorsExpected || totalErrors > 0 { return .errors }
+        return .clean
+    }
+}
+
+enum GCRTrackStatus {
+    case clean      // all sectors, no errors
+    case errors     // checksum errors or missing sectors (likely protection)
+    case noSectors  // track present but no sectors decoded
+    case noData     // G64 null track
+
+    var label: String {
+        switch self {
+        case .clean:     return "OK"
+        case .errors:    return "ERR"
+        case .noSectors: return "---"
+        case .noData:    return "   "
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .clean:     return Color.green.opacity(0.8)
+        case .errors:    return Color.yellow.opacity(0.9)
+        case .noSectors: return Color.orange.opacity(0.8)
+        case .noData:    return Color.gray.opacity(0.4)
+        }
+    }
 }
 
 // MARK: - D64Disk
@@ -155,6 +237,7 @@ struct D64Disk {
     let freeBlocks: Int
     let files:      [D64File]
     let format:     DiskFormat
+    var rawTracks:  [GCRTrackInfo]?   // set for G64/NIB only
 }
 
 // MARK: - D64Parser
@@ -195,6 +278,7 @@ struct D64Parser {
             case 66...70: return 17
             default:      return 0
             }
+        case .t64, .lnx, .g64, .nib: return 0
         }
     }
 
@@ -239,6 +323,7 @@ struct D64Parser {
                 let e = offset(track: 40, sector: 2, format: .d81) + 0x10 + (t - 41) * 6
                 return (e, e + 1)
             }
+        case .t64, .lnx, .g64, .nib: return (0, 0)
         }
     }
 
@@ -290,7 +375,20 @@ struct D64Parser {
 
     // MARK: - Parse
 
-    static func parse(data: Data) -> D64Disk? {
+    static func parse(data: Data, formatHint: DiskFormat? = nil) -> D64Disk? {
+        // Route archive/raw formats to their dedicated parsers
+        if T64Parser.isMagic(data) {
+            return T64Parser.parse(data: data)
+        }
+        if G64Parser.isMagic(data) {
+            return G64Parser.parse(data: data)
+        }
+        if formatHint == .lnx {
+            return LNXParser.parse(data: data)
+        }
+        if formatHint == .nib {
+            return NIBParser.parse(data: data)
+        }
         guard let format = DiskFormat.detect(size: data.count) else { return nil }
         let bytes = [UInt8](data)
 
@@ -332,6 +430,9 @@ struct D64Parser {
                 let entry = bam2 + 0x10 + (t - 41) * 6
                 if entry < bytes.count { freeBlocks += Int(bytes[entry]) }
             }
+        case .t64, .lnx, .g64, .nib:
+            // These formats are handled by dedicated parsers — this path is unreachable
+            return nil
         }
 
         // Directory entries — same 32-byte format for all formats
@@ -573,6 +674,7 @@ struct D64Parser {
                 usedSectors.insert(0)  // T40/S0 = header
                 usedSectors.insert(1)  // T40/S1 = BAM1
                 usedSectors.insert(2)  // T40/S2 = BAM2
+            case .t64, .lnx, .g64, .nib: break
             }
             // Walk the directory chain to find all used dir sectors
             var walkTrack  = UInt8(format.dirTrack)
@@ -863,6 +965,7 @@ struct D64Parser {
             let header = offset(track: 40, sector: 0, format: .d81)
             for i in 0..<16 { b[header + 0x04 + i] = i < nameBytes.count ? nameBytes[i] : 0xA0 }
             for i in 0..<2  { b[header + 0x16 + i] = i < idBytes.count   ? idBytes[i]   : 0x30 }
+        case .t64, .lnx, .g64, .nib: return nil
         }
         return b
     }
