@@ -273,7 +273,29 @@ struct VICELauncher {
             return
         }
 
-        // -8 attaches disk to drive 8
+        // T64 is a tape archive — VICE can't mount it as a drive.
+        // Build a virtual D64 from the T64 contents and mount that on drive 8.
+        if document.diskFormat == .t64 {
+            guard let disk = D64Parser.parse(data: document.data) else {
+                showT64ConvertError()
+                return
+            }
+            var d64Bytes = Array(D64Document.createBlankD64(name: disk.diskName, id: disk.diskID))
+            for file in disk.files {
+                if let updated = D64Parser.injectFile(into: d64Bytes, file: file) {
+                    d64Bytes = updated
+                }
+            }
+            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("diskinspector_t64_virtual.d64")
+            do {
+                try Data(d64Bytes).write(to: tempURL)
+                launchBinary(binary, args: ["-8", tempURL.path])
+            } catch {
+                showLaunchError(path: binary, error: error)
+            }
+            return
+        }
         launchBinary(binary, args: ["-8", diskURL.path])
     }
 
@@ -319,9 +341,24 @@ struct VICELauncher {
         // sequences confuse VICE, which reads them as three separate characters.
         // Replace each PUA char with '?' — CBM DOS treats it as a single-char wildcard
         // so the pattern still matches the correct file by both content and length.
-        let safeFilename = file.filename.unicodeScalars.map { scalar -> String in
-            scalar.value >= 0xE000 && scalar.value <= 0xE0FF ? "?" : String(scalar)
-        }.joined().lowercased()
+        // T64: extract PRG to a temp file — tape autostart via filename is unreliable.
+        // Also used for any file whose name contains PETSCII special chars (stored as PUA
+        // U+E0xx): VICE's -autostart does exact matching, not wildcard, so passing '?'
+        // substitutes fails. Extracting rawData bypasses the filename matching entirely.
+        let hasPUA = file.filename.unicodeScalars.contains { $0.value >= 0xE000 && $0.value <= 0xE0FF }
+        if document.diskFormat == .t64 || hasPUA {
+            let tempPRG = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("diskinspector_autostart.prg")
+            do {
+                try file.rawData.write(to: tempPRG)
+                launchBinary(binary, args: ["-autostart", tempPRG.path])
+            } catch {
+                showLaunchError(path: binary, error: error)
+            }
+            return
+        }
+
+        let safeFilename = file.filename.lowercased()
         let autostartArg = "\(targetURL.path):\(safeFilename)"
         launchBinary(binary, args: ["-autostart", autostartArg])
     }
@@ -428,6 +465,15 @@ struct VICELauncher {
         if alert.runModal() == .alertFirstButtonReturn {
             VICESetupWindow.show()
         }
+    }
+
+    private static func showT64ConvertError() {
+        let alert = NSAlert()
+        alert.messageText = "Cannot Open T64 in VICE"
+        alert.informativeText = "The T64 archive could not be converted to a disk image.\nUse 'Run File in VICE' to load individual programs."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     private static func showBinaryNotFoundAlert(path: String) {

@@ -8,9 +8,9 @@
 	<key>CFBundleName</key>
 	<string>Disk Inspector</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.4</string>
+	<string>1.5</string>
 	<key>CFBundleVersion</key>
-	<string>1.4</string>
+	<string>1.5</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 by metesev</string>
 	<!-- Bundle the C64 Pro Mono font inside the app — no system install needed -->

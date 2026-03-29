@@ -337,9 +337,12 @@ struct SeparatorLibraryView: View {
             selectedID = pattern.id
         }
 
-        // Drag support — drag the separator as a D64File to the main directory window
+        // Drag support — drag the separator as a D64File to the main directory window.
+        // Stage in D64Clipboard so the insertion zone drop handlers can find it
+        // (they check the clipboard, not the raw NSItemProvider).
         let d64file = pattern.toD64File()
         return row.onDrag {
+            D64Clipboard.shared.stageDrag([d64file])
             let provider = NSItemProvider()
             if let encoded = try? JSONEncoder().encode(d64file) {
                 provider.registerDataRepresentation(

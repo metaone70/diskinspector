@@ -106,6 +106,35 @@ struct DiskInspectorApp: App {
                     SeparatorLibraryWindow.open()
                 }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button("Export Directory as Text…") {
+                    guard let window = NSApplication.shared.keyWindow,
+                          let doc = DocumentRegistry.shared.document(for: window)
+                    else { return }
+                    if let disk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat) {
+                        DiskExporter.saveAsText(data: doc.data, diskName: disk.diskName)
+                    }
+                }
+
+                Button("Export Directory as HTML…") {
+                    guard let window = NSApplication.shared.keyWindow,
+                          let doc = DocumentRegistry.shared.document(for: window)
+                    else { return }
+                    if let disk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat) {
+                        DiskExporter.saveAsHTML(data: doc.data, diskName: disk.diskName)
+                    }
+                }
+
+                Button("Export Directory as PNG…") {
+                    guard let window = NSApplication.shared.keyWindow,
+                          let doc = DocumentRegistry.shared.document(for: window)
+                    else { return }
+                    if let disk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat) {
+                        DiskExporter.saveAsPNG(data: doc.data, diskName: disk.diskName)
+                    }
+                }
             }
 
             // ── Help ──
@@ -165,7 +194,7 @@ struct AboutView: View {
                 .font(.custom(monoFont, size: 18))
                 .foregroundColor(Color.c64Blue)
 
-            Text("VERSION 1.4")
+            Text("VERSION \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
                 .font(.custom(monoFont, size: 11))
                 .foregroundColor(Color.c64LightBlue)
 

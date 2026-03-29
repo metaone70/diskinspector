@@ -15,51 +15,7 @@ struct LNXParser {
         guard data.count >= 254 else { return nil }
         let bytes = [UInt8](data)
 
-        // Read the directory (in PETSCII text) which starts within the first blocks.
-        // We scan until we parse the number of expected directory entries.
-        var dirTextBytes: [UInt8] = []
-        var blockIdx = 0
-        var foundSignature = false
-        var numEntries = 0
-        var expectedDirBlocks = 1
-
-        // Extract tokens separated by 0x0D from the first few blocks
-        var tokens: [String] = []
-        var currentToken: [UInt8] = []
-
-        func extractTokens(from blockSize: Int) {
-            let limit = min(bytes.count, blockSize)
-            for i in 0..<limit {
-                if bytes[i] == 0x0D {
-                    let petscii = D64Parser.petsciiToString(ArraySlice(currentToken))
-                    tokens.append(petscii)
-                    currentToken.removeAll()
-                } else {
-                    // Skip BASIC stub padding (spaces and 0x00) before the signature
-                    if !foundSignature && currentToken.isEmpty && (bytes[i] == 0x20 || bytes[i] == 0x00) {
-                        continue
-                    }
-                    currentToken.append(bytes[i])
-                }
-            }
-        }
-
-        // We initially extract tokens from the first block
-        var scanLimit = 254
-        var extractedLen = 0
-        
-        // Loop until we extract all the directory tokens
-        while extractedLen < bytes.count {
-            let petscii = D64Parser.petsciiToString(ArraySlice([bytes[extractedLen]]))
-            if petscii == "\r" {
-                // If we match 0x0D directly in loop, we can just split tokens
-                break
-            }
-            extractedLen += 1
-        }
-        
-        // Since LNX directory is somewhat tricky to parse block-by-block,
-        // we can just extract ALL 0x0D-separated tokens from the file up to a reasonable limit,
+        // Extract ALL 0x0D-separated tokens from the file up to a reasonable limit,
         // then parse the directory structure, and calculate the data offset.
 
         var allTokens: [String] = []
@@ -79,6 +35,8 @@ struct LNXParser {
         // OR the BASIC stub is skipped and the first "real" token ends with the signature.
         // E.g., "... 1  *LYNX XV  BY WILL CORLEY" -> token 1
         // " 4 " -> token 2 (number of entries)
+        var numEntries = 0
+        var expectedDirBlocks = 1
         var entryStartIdx = -1
         for (i, token) in allTokens.enumerated() {
             if token.contains("*LYNX") || token.contains("LYNX") {

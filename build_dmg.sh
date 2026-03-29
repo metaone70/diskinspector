@@ -8,7 +8,7 @@
 set -e
 
 APP_NAME="Disk Inspector"
-VERSION="1.4"
+VERSION="1.5"
 DMG_NAME="DiskInspector-${VERSION}"
 DMG_VOLUME="Disk Inspector"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

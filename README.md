@@ -1,4 +1,4 @@
-# Disk Inspector v1.4
+# Disk Inspector v1.5
 
 **A Commodore 64/128 disk image editor for macOS**
 
@@ -25,17 +25,21 @@ Drag **Disk Inspector.app** to your **Applications** folder.
 ## Features
 
 - View and edit Commodore disk images with authentic C64 styling
-- Tighter directory line spacing for authentic C64 screen look
 - Copy, move, rename, and delete files between disk images
-- Drag and drop files between multiple open disks
-- Hex editor with direct byte editing and save to disk
-- BASIC listing viewer (v2.0 and v7.0 detokenizer)
+- Drag and drop files between multiple open disk windows
+- **Import files from Mac** — drag from Finder or use right-click → Import from Mac…
+- **Batch export** — export all files to a Mac folder at once (right-click → Export All to Mac…)
+- **6510 disassembler** — view full machine code listing with addresses and mnemonics (right-click → View Disassembly on PRG files)
+- **SEQ/USR viewer** — view sequential text files with PETSCII decoding (double-click or right-click → View SEQ)
+- **BASIC viewer** — BASIC v2.0 and v7.0 detokenizer (double-click a BASIC PRG)
+- **Hex editor** — direct byte editing, saves back to disk; addresses shown in C64 memory map for PRG files
 - Visual BAM map with sector-level view (including G64/NIB)
 - Disk integrity validation (including G64/NIB)
 - Separator library with 17 built-in PETSCII patterns, drag-and-drop, and custom separator support
-- Export directory as text or styled HTML
-- Launch disks and files directly in VICE emulator with keyboard shortcuts
-- Import/export files to and from Mac filesystem
+- **Export directory listing** as plain text, styled HTML, or PNG image (C64-styled, 2× retina, suitable for itch.io/social sharing)
+- **Sector Chain Viewer** — right-click any file → View Sector Chain… to inspect the full T/S link chain with byte counts per sector
+- **Recover deleted files** — ♻ RECOVER toolbar button finds scratched files whose data is still on disk and restores them with one click
+- Launch disks and files directly in VICE emulator
 - Track Map archivist view for G64/NIB: per-track GCR analysis, error counts, copy-protection indicators
 
 ## VICE Integration
@@ -72,8 +76,9 @@ Insert decorative PETSCII separator lines into your disk directory:
 | Cmd-Shift-L | Open Separator Library |
 | Up/Down Arrow | Navigate directory listing |
 | Shift+Arrow | Extend selection up/down |
+| Cmd+Up / Cmd+Down | Move selected file up/down in directory |
 | Delete | Delete selected files |
-| Double-click | View file (BASIC or Hex) |
+| Double-click | View file (BASIC → SEQ → Hex, in order) |
 
 ## Requirements
 

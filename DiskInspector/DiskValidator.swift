@@ -371,3 +371,129 @@ struct ValidationResultsView: View {
         .frame(minWidth: 400, minHeight: 250)
     }
 }
+
+// MARK: - Recovery Window
+
+struct RecoveryWindow {
+    static func open(document: D64Document, diskName: String) {
+        let view       = RecoveryView(document: document, diskName: diskName)
+        let hosting    = NSHostingController(rootView: view)
+        let window     = NSWindow(contentViewController: hosting)
+        window.title   = "\(diskName.uppercased()) — Recover Deleted Files"
+        window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
+        window.setContentSize(NSSize(width: 560, height: 320))
+        window.minSize = NSSize(width: 480, height: 250)
+        window.center()
+        let controller = NSWindowController(window: window)
+        controller.showWindow(nil)
+        window.makeKeyAndOrderFront(nil)
+        objc_setAssociatedObject(window, "recoveryController", controller, .OBJC_ASSOCIATION_RETAIN)
+    }
+}
+
+struct RecoveryView: View {
+    @ObservedObject var document: D64Document
+    let diskName: String
+
+    private let monoFont = "C64 Pro Mono"
+
+    var deleted: [DeletedEntry] {
+        guard let format = DiskFormat.detect(size: document.data.count) else { return [] }
+        return D64Parser.findDeletedFiles(data: document.data, format: format)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack {
+                Text("RECOVER: \(diskName.uppercased())")
+                    .font(.custom(monoFont, size: 14))
+                    .foregroundColor(Color.c64Blue)
+                Spacer()
+                Text(deleted.isEmpty ? "NO DELETED FILES" : "\(deleted.count) FOUND")
+                    .font(.custom(monoFont, size: 14))
+                    .foregroundColor(deleted.isEmpty ? .green : .orange)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            if deleted.isEmpty {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Text("No recoverable deleted files found.")
+                        .font(.custom(monoFont, size: 12))
+                        .foregroundColor(Color.c64LightBlue)
+                    Spacer()
+                }
+                Spacer()
+            } else {
+                // Column headers
+                HStack(spacing: 0) {
+                    Text("NAME").frame(width: 210, alignment: .leading)
+                    Text("START").frame(width: 90, alignment: .leading)
+                    Text("BLKS").frame(width: 50, alignment: .leading)
+                    Spacer()
+                }
+                .font(.custom(monoFont, size: 10))
+                .foregroundColor(Color.c64LightBlue)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 5)
+
+                Divider()
+
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(deleted) { entry in
+                            HStack(spacing: 0) {
+                                Text("\"\(entry.filename.uppercased())\"")
+                                    .frame(width: 210, alignment: .leading)
+                                    .lineLimit(1)
+                                Text("T\(entry.track)/S\(entry.sector)")
+                                    .frame(width: 90, alignment: .leading)
+                                    .lineLimit(1)
+                                    .foregroundColor(Color.c64LightBlue)
+                                Text("\(entry.blocks)")
+                                    .frame(width: 50, alignment: .leading)
+                                    .lineLimit(1)
+                                    .foregroundColor(Color.c64LightBlue)
+                                Spacer()
+                                Button("Restore") {
+                                    document.restoreDeletedFile(entry)
+                                }
+                                .font(.custom(monoFont, size: 10))
+                                .foregroundColor(Color.c64LightBlue)
+                                .buttonStyle(.plain)
+                                .padding(.trailing, 12)
+                                .help("Restore this file as PRG and update the BAM")
+                            }
+                            .font(.custom(monoFont, size: 12))
+                            .foregroundColor(Color.c64Blue)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 3)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Divider()
+
+                HStack {
+                    Spacer()
+                    Button("Restore All \(deleted.count) Files") {
+                        let toRestore = deleted
+                        for entry in toRestore { document.restoreDeletedFile(entry) }
+                    }
+                    .font(.custom(monoFont, size: 11))
+                    .foregroundColor(Color.c64Blue)
+                    .padding(.vertical, 8)
+                    .padding(.trailing, 16)
+                }
+            }
+        }
+        .background(Color(NSColor.windowBackgroundColor))
+        .frame(minWidth: 400, minHeight: 250)
+    }
+}

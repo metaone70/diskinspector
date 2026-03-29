@@ -26,12 +26,11 @@ struct DiskExporter {
         lines.append("\(disk.freeBlocks) BLOCKS FREE.")
         lines.append("")
 
-        // Summary
-        lines.append("--- Disk Inspector Export ---")
-        lines.append("Format:     \(disk.format.displayName)")
-        lines.append("Files:      \(disk.files.count)")
-        lines.append("Used:       \(disk.format.totalBlocks - disk.freeBlocks) blocks")
-        lines.append("Free:       \(disk.freeBlocks) blocks")
+        let usedBlocks   = disk.format.totalBlocks - disk.freeBlocks
+        let usedPercent  = disk.format.totalBlocks > 0
+            ? Int(Double(usedBlocks) / Double(disk.format.totalBlocks) * 100) : 0
+        lines.append("FORMAT: \(disk.format.displayName)   FILES: \(disk.files.count)   USED: \(usedBlocks)/\(disk.format.totalBlocks) blocks (\(usedPercent)%)")
+        lines.append("Exported by Disk Inspector")
 
         return lines.joined(separator: "\n")
     }
@@ -197,11 +196,130 @@ struct DiskExporter {
         }
     }
 
+    // MARK: - PNG Export
+
+    @MainActor
+    static func saveAsPNG(data: Data, diskName: String) {
+        guard let disk = D64Parser.parse(data: data) else { return }
+        let view     = DirectoryPNGView(disk: disk)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2.0
+        guard let image = renderer.nsImage,
+              let tiff   = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png    = bitmap.representation(using: .png, properties: [:]) else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = diskName.lowercased()
+            .replacingOccurrences(of: " ", with: "_") + ".png"
+        panel.allowedContentTypes = [.png]
+        panel.message = "Export Directory Listing as PNG"
+        if panel.runModal() == .OK, let url = panel.url {
+            try? png.write(to: url)
+        }
+    }
+
     // MARK: - Helper
 
     private static func escapeHTML(_ string: String) -> String {
         string.replacingOccurrences(of: "&", with: "&amp;")
               .replacingOccurrences(of: "<", with: "&lt;")
               .replacingOccurrences(of: ">", with: "&gt;")
+    }
+}
+
+// MARK: - Directory PNG View (private render target)
+
+private struct DirectoryPNGView: View {
+    let disk: D64Disk
+
+    // Fixed light-mode C64 colors (not dynamic — PNG is for sharing)
+    private let bg        = Color(red: 0.263, green: 0.216, blue: 0.631)
+    private let textWhite = Color.white
+    private let accent    = Color(red: 0.467, green: 0.427, blue: 0.816)
+    private let fontSize: CGFloat  = 14
+    // Fixed column widths — matches the app's main directory layout
+    private let colBlocks: CGFloat = 56
+    private let colName:   CGFloat = 308
+    private let colType:   CGFloat = 42
+    private let hPad:      CGFloat = 24
+
+    private var contentWidth: CGFloat { colBlocks + colName + colType }
+
+    private var usedBlocks:  Int { disk.format.totalBlocks - disk.freeBlocks }
+    private var usedPercent: Int {
+        disk.format.totalBlocks > 0
+            ? Int(Double(usedBlocks) / Double(disk.format.totalBlocks) * 100) : 0
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+
+            // ── Disk header — reversed video (light bg, dark text) ──
+            HStack(spacing: 0) {
+                Text(" 0   ")
+                    .foregroundColor(bg)
+                Text("\"\(disk.diskName.uppercased())\" \(disk.diskID.uppercased())")
+                    .foregroundColor(bg)
+                if !disk.format.dosVersion.isEmpty {
+                    Text(" \(disk.format.dosVersion)")
+                        .foregroundColor(bg)
+                }
+                Spacer(minLength: 0)
+            }
+            .font(.custom("C64 Pro Mono", size: fontSize))
+            .frame(width: contentWidth)
+            .padding(.vertical, 2)
+            .background(accent)
+            .padding(.bottom, 4)
+
+            // ── File entries — fixed column widths prevent any wrapping ──
+            ForEach(disk.files) { file in
+                HStack(spacing: 0) {
+                    Text(String(file.blocks).padding(toLength: 4, withPad: " ", startingAt: 0))
+                        .foregroundColor(accent)
+                        .frame(width: colBlocks, alignment: .leading)
+                    Text("\"\(file.filename.uppercased())\"")
+                        .foregroundColor(textWhite)
+                        .frame(width: colName, alignment: .leading)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text(file.fileType)
+                        .foregroundColor(accent)
+                        .frame(width: colType, alignment: .leading)
+                }
+                .font(.custom("C64 Pro Mono", size: fontSize))
+            }
+
+            Spacer().frame(height: 4)
+
+            // ── Blocks free ──
+            if !disk.format.isArchive {
+                Text("\(disk.freeBlocks) BLOCKS FREE.")
+                    .font(.custom("C64 Pro Mono", size: fontSize))
+                    .foregroundColor(textWhite)
+                    .frame(width: contentWidth, alignment: .leading)
+            }
+
+            Spacer().frame(height: 10)
+
+            // ── Info line (matches HTML export) ──
+            Text("FORMAT: \(disk.format.displayName)   FILES: \(disk.files.count)   USED: \(usedBlocks)/\(disk.format.totalBlocks) blocks (\(usedPercent)%)")
+                .font(.custom("C64 Pro Mono", size: 10))
+                .foregroundColor(accent)
+                .frame(width: contentWidth, alignment: .leading)
+                .lineLimit(1)
+
+            Spacer().frame(height: 4)
+
+            // ── Watermark ──
+            Text("Exported by Disk Inspector")
+                .font(.custom("C64 Pro Mono", size: 10))
+                .foregroundColor(accent.opacity(0.55))
+                .frame(width: contentWidth, alignment: .trailing)
+        }
+        .padding(.horizontal, hPad)
+        .padding(.vertical, 20)
+        .background(bg)
+        .frame(width: contentWidth + hPad * 2)
     }
 }

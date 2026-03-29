@@ -156,6 +156,14 @@ struct HexView: View {
     private let monoFont = "C64 Pro Mono"
     private let hexFontSize: CGFloat = 13
 
+    /// For PRG files the first 2 bytes are the load address (little-endian).
+    /// All displayed addresses are offset by this value so the dump matches
+    /// the actual C64 memory map.
+    var baseAddress: Int {
+        guard file.fileType == "PRG", file.rawData.count >= 2 else { return 0 }
+        return Int(file.rawData[0]) | (Int(file.rawData[1]) << 8)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // ── File info header ──
@@ -268,7 +276,10 @@ struct HexView: View {
             }
 
             if let sel = editor.selectedOffset {
-                Text(String(format: "OFFSET: $%04X (%d)", sel, sel))
+                let addrStr = baseAddress > 0
+                    ? String(format: "OFFSET $%04X  ADDR $%04X", sel, sel + baseAddress)
+                    : String(format: "OFFSET $%04X  (%d)", sel, sel)
+                Text(addrStr)
                     .font(.custom(monoFont, size: 10))
                     .foregroundColor(Color.c64LightBlue)
             }
@@ -280,7 +291,7 @@ struct HexView: View {
     func hexRow(row: Int) -> some View {
         let start = row * bytesPerRow
         let end = min(start + bytesPerRow, editor.editedData.count)
-        let offsetStr = String(format: "%04X ", start)
+        let offsetStr = String(format: "%04X ", start + baseAddress)
 
         return HStack(spacing: 0) {
             // Offset

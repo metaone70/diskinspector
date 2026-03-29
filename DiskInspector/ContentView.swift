@@ -175,6 +175,7 @@ struct DiskWindowView: View {
 
     @State private var insertionIndex: Int?    = nil
     @State private var droppedAtIndex: Int?    = nil
+    @State private var isDropTargeted: Bool    = false
     @State private var renamingID:     UUID?   = nil
     @State private var renameText:     String  = ""
     @State private var renamingDisk:   Bool    = false
@@ -183,31 +184,19 @@ struct DiskWindowView: View {
     @FocusState private var renameFieldFocused: Bool
     @FocusState private var diskNameFocused:    Bool
     @State private var showingInfo: Bool = false
-    
     let fontSize:        CGFloat = 14
     let lineHeight:      CGFloat = 14
     let padding:         CGFloat = 16
     let maxVisibleLines: Int     = 25
-    let colBlocks:       CGFloat = 42
+    let colBlocks:       CGFloat = 56
     let colName:         CGFloat = 280
-    let colType:         CGFloat = 130
+    let colType:         CGFloat = 56
 
     @StateObject private var monitorHolder = MonitorHolder()
 
     var totalLines: Int { disk.files.count + 4 + (showingInfo ? 10 : 0) }
-    var infoPanelHeight: CGFloat {
-        if !showingInfo { return 0 }
-        // Fixed elements: divider(12) + NAME(16) + ID(16) + FORMAT(16)
-        //                + USED label(16) + progress bar(34) + PRG(16) + TOTAL(16) = 142
-        // VStack spacing(2) between 8 items = 14
-        // Conditional type rows: SEQ, DEL, USR — each 18 (16 height + 2 spacing)
-        let conditionalRows = (disk.files.contains { $0.fileType == "SEQ" } ? 1 : 0)
-                            + (disk.files.contains { $0.fileType == "DEL" } ? 1 : 0)
-                            + (disk.files.contains { $0.fileType == "USR" } ? 1 : 0)
-        return 156 + CGFloat(conditionalRows) * 18 + 20  // +20 safety buffer
-    }
         
-    var windowWidth: CGFloat { colBlocks + colName + colType + padding * 2 + 32 }
+    var windowWidth: CGFloat { colBlocks + colName + colType + padding * 2 + 96 }
     var initialHeight: CGFloat {
         let lines = min(totalLines, maxVisibleLines)
         return CGFloat(lines) * lineHeight + padding * 2 + 8
@@ -227,57 +216,48 @@ struct DiskWindowView: View {
             }
         }
         .frame(width: windowWidth)
-        .dropDestination(for: D64File.self) { droppedFiles, _ in
+        // Single unified drop handler for both DI-to-DI drag and Finder drag.
+        // Using two separate .dropDestination/.onDrop on the same view causes
+        // .dropDestination to consume all events, blocking Finder drops.
+        .onDrop(of: [UTType.d64File, UTType.fileURL, UTType.url], isTargeted: $isDropTargeted) { providers, _ in
             guard !disk.format.isArchive else { return false }
-            let targetIndex = droppedAtIndex
+
+            // ── Internal DI drag dropped outside all insertion zones ──
+            // Insertion zones handle targeted drops; this catches misses.
+            // Same-disk moves with no zone target = no-op (user missed).
+            // Cross-disk / separator drops = append to end.
+            let staged = D64Clipboard.shared.peekDrag()
+            if !staged.isEmpty {
+                insertionIndex = nil
+                droppedAtIndex = nil
+                D64Clipboard.shared.endDrag()
+                for dropped in staged where !isSameDisk(dropped) {
+                    if canFitFile(dropped) {
+                        document.injectFile(dropped, at: nil)
+                    } else {
+                        showCapacityError(filename: dropped.filename)
+                    }
+                }
+                return true
+            }
+
+            // ── Finder drag: load file URLs from providers ──
             insertionIndex = nil
             droppedAtIndex = nil
-            // Use staged drag files for multi-selection; fall back to single dropped file
-            let staged = D64Clipboard.shared.peekDrag()
-            let allFiles = staged.isEmpty ? droppedFiles : staged
-            D64Clipboard.shared.endDrag()
-            for dropped in allFiles {
-                if isSameDisk(dropped) {
-                    guard let srcIndex = disk.files.firstIndex(where: {
-                        $0.track == dropped.track &&
-                        $0.sector == dropped.sector &&
-                        $0.filename == dropped.filename
-                    }) else { continue }
-                    guard let t = targetIndex, srcIndex != t else { continue }
-                    let adjusted = t > srcIndex ? t - 1 : t
-                    document.moveFile(from: srcIndex, to: adjusted)
-                } else {
-                    if !canFitFile(dropped) {
-                        showCapacityError(filename: dropped.filename)
-                        continue
-                    }
-                    let actualTarget: Int?
-                    if let t = targetIndex, t < disk.files.count {
-                        actualTarget = D64Parser.directoryIndex(
-                            in: [UInt8](document.data),
-                            forFile: disk.files[t]
-                        )
-                    } else {
-                        actualTarget = nil
-                    }
-                    document.injectFile(dropped, at: actualTarget)
-                }
-            }
-            return true
-        } isTargeted: { isTargeted in
-            if !isTargeted { insertionIndex = nil }
-        }
-        .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
-            guard !disk.format.isArchive else { return false }
+            var handled = false
             for provider in providers {
-                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                    guard let data = item as? Data,
-                          let url = URL(dataRepresentation: data, relativeTo: nil)
-                    else { return }
-                    DispatchQueue.main.async { importFile(from: url) }
+                if provider.canLoadObject(ofClass: URL.self) {
+                    handled = true
+                    _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                        guard let url = url, url.isFileURL else { return }
+                        DispatchQueue.main.async { importFile(from: url) }
+                    }
                 }
             }
-            return true
+            return handled
+        }
+        .onChange(of: isDropTargeted) { _, targeted in
+            if !targeted { insertionIndex = nil }
         }
         .onAppear {
             resizeWindow()
@@ -449,6 +429,64 @@ struct DiskWindowView: View {
                     }
                     return nil
                 }
+                // Cmd+Down — move selected file(s) down one slot
+                if event.keyCode == 125 && cmd {
+                    DispatchQueue.main.async {
+                        guard !disk.format.isArchive,
+                              let currentDisk = D64Parser.parse(data: document.data, formatHint: document.diskFormat),
+                              !currentDisk.files.isEmpty else { return }
+                        let indices = currentDisk.files.indices.filter { selection.isSelected(currentDisk.files[$0], at: $0) }.sorted()
+                        guard !indices.isEmpty else { return }
+                        // Don't move if the last selected file is already at the bottom
+                        guard indices.last! < currentDisk.files.count - 1 else { return }
+                        // Move from bottom to top to preserve relative order
+                        for srcIndex in indices.reversed() {
+                            document.moveFile(from: srcIndex, to: srcIndex + 1)
+                        }
+                        // Update selection to follow the moved files
+                        if let refreshed = D64Parser.parse(data: document.data, formatHint: document.diskFormat) {
+                            let newIndices = indices.map { $0 + 1 }
+                            selection.clear()
+                            for i in newIndices {
+                                guard i < refreshed.files.count else { continue }
+                                selection.select(refreshed.files[i], at: i)
+                            }
+                            if let last = newIndices.last, last < refreshed.files.count {
+                                selection.lastTappedKey = selection.key(for: refreshed.files[last], at: last)
+                            }
+                        }
+                    }
+                    return nil
+                }
+                // Cmd+Up — move selected file(s) up one slot
+                if event.keyCode == 126 && cmd {
+                    DispatchQueue.main.async {
+                        guard !disk.format.isArchive,
+                              let currentDisk = D64Parser.parse(data: document.data, formatHint: document.diskFormat),
+                              !currentDisk.files.isEmpty else { return }
+                        let indices = currentDisk.files.indices.filter { selection.isSelected(currentDisk.files[$0], at: $0) }.sorted()
+                        guard !indices.isEmpty else { return }
+                        // Don't move if the first selected file is already at the top
+                        guard indices.first! > 0 else { return }
+                        // Move from top to bottom to preserve relative order
+                        for srcIndex in indices {
+                            document.moveFile(from: srcIndex, to: srcIndex - 1)
+                        }
+                        // Update selection to follow the moved files
+                        if let refreshed = D64Parser.parse(data: document.data, formatHint: document.diskFormat) {
+                            let newIndices = indices.map { $0 - 1 }
+                            selection.clear()
+                            for i in newIndices {
+                                guard i >= 0 && i < refreshed.files.count else { continue }
+                                selection.select(refreshed.files[i], at: i)
+                            }
+                            if let first = newIndices.first, first >= 0 && first < refreshed.files.count {
+                                selection.lastTappedKey = selection.key(for: refreshed.files[first], at: first)
+                            }
+                        }
+                    }
+                    return nil
+                }
                 // Arrow Down — select next file
                 if event.keyCode == 125 && !cmd {
                     DispatchQueue.main.async {
@@ -583,68 +621,66 @@ struct DiskWindowView: View {
             .lineLimit(1)
 
             ForEach(Array(zip(disk.files.indices, disk.files)), id: \.1.id) { index, file in
-                if insertionIndex == index {
-                    insertionLine()
-                }
-
+                let isLocked = file.fileTypeByte & 0x40 != 0
+                let isSplat  = file.fileTypeByte & 0x80 == 0
                 dirLine(
                     blocks: "\(file.blocks)",
-                    name: "\"\(file.filename.uppercased())\"",
-                    suffix: file.fileType,
+                    name: "\(isSplat ? "*" : " ")\"\(file.filename.uppercased())\"",
+                    suffix: file.fileType + (isLocked ? "<" : ""),
                     nameColor: Color.c64Blue,
                     suffixColor: Color.c64LightBlue,
                     file: file,
                     index: index
                 )
-                .dropDestination(for: D64File.self) { droppedFiles, _ in
+                // Row is stable (UUID id) — onDrop here never gets rebuilt during drag.
+                // This prevents the feedback loop that caused unresponsiveness with
+                // positional insertion zone views.
+                .onDrop(
+                    of: [UTType.d64File],
+                    isTargeted: Binding<Bool>(
+                        get: { insertionIndex == index },
+                        set: { val in
+                            if val { insertionIndex = index; droppedAtIndex = index }
+                            else if insertionIndex == index { insertionIndex = nil; droppedAtIndex = nil }
+                        }
+                    )
+                ) { _, _ in
                     guard !disk.format.isArchive else { return false }
-                    let targetIndex = droppedAtIndex
+                    let staged = D64Clipboard.shared.peekDrag()
+                    guard !staged.isEmpty else { return false }
+                    let targetIndex = index
                     insertionIndex = nil
                     droppedAtIndex = nil
-                    let staged = D64Clipboard.shared.peekDrag()
-                    let allFiles = staged.isEmpty ? droppedFiles : staged
                     D64Clipboard.shared.endDrag()
-                    for dropped in allFiles {
+                    for dropped in staged {
                         if isSameDisk(dropped) {
                             guard let srcIndex = disk.files.firstIndex(where: {
                                 $0.track == dropped.track &&
                                 $0.sector == dropped.sector &&
                                 $0.filename == dropped.filename
                             }) else { continue }
-                            guard let t = targetIndex, srcIndex != t else { continue }
-                            let adjusted = t > srcIndex ? t - 1 : t
-                            document.moveFile(from: srcIndex, to: adjusted)
+                            if srcIndex == targetIndex || srcIndex + 1 == targetIndex { continue }
+                            let adjustedDest = targetIndex > srcIndex ? targetIndex - 1 : targetIndex
+                            document.moveFile(from: srcIndex, to: adjustedDest)
                         } else {
-                            if !canFitFile(dropped) {
-                                showCapacityError(filename: dropped.filename)
-                                continue
-                            }
-                            let actualTarget: Int?
-                            if let t = targetIndex, t < disk.files.count {
-                                actualTarget = D64Parser.directoryIndex(
-                                    in: [UInt8](document.data),
-                                    forFile: disk.files[t]
-                                )
-                            } else {
-                                actualTarget = nil
-                            }
+                            if !canFitFile(dropped) { showCapacityError(filename: dropped.filename); continue }
+                            let actualTarget: Int? = targetIndex < disk.files.count
+                                ? D64Parser.directoryIndex(in: [UInt8](document.data), forFile: disk.files[targetIndex])
+                                : nil
                             document.injectFile(dropped, at: actualTarget)
                         }
                     }
                     return true
-                } isTargeted: { isTargeted in
-                    if isTargeted {
-                        insertionIndex = index
-                        droppedAtIndex = index
-                    } else if insertionIndex == index {
-                        // Clear only if we were the one who set it
-                        insertionIndex = nil
+                }
+                // Insertion indicator as an overlay — zero layout impact, no VStack shift.
+                // Offset upward so it appears in the gap between this row and the one above.
+                .overlay(alignment: .top) {
+                    if insertionIndex == index {
+                        insertionLine()
+                            .offset(y: -6)
+                            .allowsHitTesting(false)
                     }
                 }
-            }
-
-            if insertionIndex == disk.files.count {
-                insertionLine()
             }
 
             Spacer(minLength: 0)
@@ -659,7 +695,6 @@ struct DiskWindowView: View {
                 }
 
                 HStack(spacing: 0) {
-                    Spacer()
                     if disk.format != .t64 && disk.format != .lnx {
                         Button(action: {
                             let issues = DiskValidator.validate(data: document.analysableData)
@@ -683,6 +718,18 @@ struct DiskWindowView: View {
                         .padding(.trailing, 12)
                     }
 
+                    if !disk.format.isArchive {
+                        Button(action: {
+                            RecoveryWindow.open(document: document, diskName: disk.diskName)
+                        }) {
+                            Text("♻ RECOVER")
+                                .font(.custom("C64 Pro Mono", size: 11))
+                                .foregroundColor(Color.c64LightBlue)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 12)
+                    }
+
                     if disk.format == .g64 || disk.format == .nib {
                         Button(action: {
                             TrackMapWindow.open(disk: disk)
@@ -692,6 +739,25 @@ struct DiskWindowView: View {
                                 .foregroundColor(Color.c64LightBlue)
                         }
                         .buttonStyle(.plain)
+                        .padding(.trailing, 12)
+                    }
+
+                    if !disk.format.isArchive && !disk.files.isEmpty {
+                        Menu {
+                            Button("Name (A→Z)")    { document.sortFiles(by: .name,     ascending: true)  }
+                            Button("Name (Z→A)")    { document.sortFiles(by: .name,     ascending: false) }
+                            Divider()
+                            Button("Type")          { document.sortFiles(by: .fileType, ascending: true)  }
+                            Divider()
+                            Button("Blocks (↑)")    { document.sortFiles(by: .blocks,   ascending: true)  }
+                            Button("Blocks (↓)")    { document.sortFiles(by: .blocks,   ascending: false) }
+                        } label: {
+                            Text("↕ SORT")
+                                .font(.custom("C64 Pro Mono", size: 11))
+                                .foregroundColor(Color.c64LightBlue)
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
                         .padding(.trailing, 12)
                     }
 
@@ -707,14 +773,11 @@ struct DiskWindowView: View {
             if showingInfo {
                 infoPanel
             }
-            
+
         }
         .padding(.leading, 20)
         .padding(.trailing, 12)
         .padding(.vertical, 12)
-        .onChange(of: showingInfo) {
-            resizeWindowForInfoToggle()
-        }
         .onChange(of: document.data) {
             insertionIndex = nil
             droppedAtIndex = nil
@@ -746,6 +809,9 @@ struct DiskWindowView: View {
             }
             Button("Export Directory as HTML…") {
                 DiskExporter.saveAsHTML(data: document.data, diskName: disk.diskName)
+            }
+            Button("Export Directory as PNG…") {
+                DiskExporter.saveAsPNG(data: document.data, diskName: disk.diskName)
             }
         }
     }
@@ -813,12 +879,14 @@ struct DiskWindowView: View {
                     Spacer(minLength: 0)
                 }
                 .background(Color.c64Blue)
-                .frame(width: colName, height: lineHeight)
+                .frame(maxWidth: .infinity)
+                .frame(height: lineHeight)
             } else {
                 Text(name)
                     .font(.custom("C64 Pro Mono", size: fontSize))
                     .foregroundColor(isSelected ? .white : nameColor)
-                    .frame(width: colName, height: lineHeight, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: lineHeight)
                     .clipped()
             }
 
@@ -826,18 +894,18 @@ struct DiskWindowView: View {
                 .font(.custom("C64 Pro Mono", size: fontSize))
                 .foregroundColor(isSelected ? .white : suffixColor)
                 .frame(width: colType, height: lineHeight, alignment: .leading)
-
-            Spacer()
         }
         .lineLimit(1)
         .fixedSize(horizontal: false, vertical: true)
         .background(isSelected ? Color.c64Blue : Color.clear)
         .onTapGesture(count: 2) {
-            // Double-click → try BASIC listing first, fall back to hex
+            // Double-click → try BASIC → try SEQ → fall back to hex
             guard let file = file else { return }
             if renamingID != nil { return }
             if !BasicViewerWindow.tryOpen(file: file) {
-                HexViewerWindow.open(file: file, document: document)
+                if !SEQViewerWindow.tryOpen(file: file) {
+                    HexViewerWindow.open(file: file, document: document)
+                }
             }
         }
         .onTapGesture {
@@ -877,6 +945,24 @@ struct DiskWindowView: View {
                     HexViewerWindow.open(file: file, document: document)
                 }
 
+                if SEQViewerWindow.canOpen(file: file) {
+                    Button("View SEQ") {
+                        SEQViewerWindow.open(file: file)
+                    }
+                }
+
+                if DisassemblerWindow.canOpen(file: file) {
+                    Button("View Disassembly") {
+                        DisassemblerWindow.open(file: file)
+                    }
+                }
+
+                if file.track != 0 {
+                    Button("View Sector Chain…") {
+                        SectorChainWindow.open(file: file, data: document.data, format: document.diskFormat)
+                    }
+                }
+
                 Divider()
 
                 Menu("Run File in VICE") {
@@ -904,6 +990,43 @@ struct DiskWindowView: View {
                         selection.selectOnly(file, at: index)
                         renameText = file.filename
                         renamingID = file.id
+                    }
+
+                    Divider()
+
+                    // ── File type, lock, splat, block count ──
+                    let typeByte = file.fileTypeByte
+                    let isLocked = typeByte & 0x40 != 0
+                    let isSplat  = typeByte & 0x80 == 0
+
+                    Menu("Change Type") {
+                        let types: [(String, UInt8)] = [("PRG", 2), ("SEQ", 1), ("USR", 3), ("REL", 4)]
+                        ForEach(types, id: \.0) { label, code in
+                            Button(action: {
+                                let newByte = (typeByte & 0xF8) | code
+                                document.setFileTypeByte(at: index, newTypeByte: newByte)
+                            }) {
+                                if (typeByte & 0x07) == code {
+                                    Label(label, systemImage: "checkmark")
+                                } else {
+                                    Text(label)
+                                }
+                            }
+                        }
+                    }
+
+                    Button(isLocked ? "Unlock" : "Lock") {
+                        document.setFileTypeByte(at: index, newTypeByte: typeByte ^ 0x40)
+                    }
+
+                    Button(isSplat ? "Clear Splat (*)" : "Mark as Splat (*)") {
+                        document.setFileTypeByte(at: index, newTypeByte: typeByte ^ 0x80)
+                    }
+
+                    if file.track != 0 {
+                        Button("Fix Block Count") {
+                            document.fixBlockCount(at: index)
+                        }
                     }
 
                     Divider()
@@ -936,6 +1059,17 @@ struct DiskWindowView: View {
                     exportToMac(file: file)
                 }
 
+                if selection.selectedKeys.count > 1 {
+                    Button("Export Selected to Mac…") {
+                        exportSelectedToMac()
+                    }
+                }
+
+                Button("Export All to Mac…") {
+                    exportAllToMac()
+                }
+                .disabled(disk.files.isEmpty)
+
                 if !disk.format.isArchive {
                     Divider()
 
@@ -954,7 +1088,14 @@ struct DiskWindowView: View {
                 }
 
             } else {
+                Button("Export All to Mac…") {
+                    exportAllToMac()
+                }
+                .disabled(disk.files.isEmpty)
+
                 if !disk.format.isArchive {
+                    Divider()
+
                     Button("Paste") {
                         for f in D64Clipboard.shared.paste() {
                             if !canFitFile(f) {
@@ -995,9 +1136,26 @@ struct DiskWindowView: View {
                         filesToDrag = [stampedFile]
                     }
                     D64Clipboard.shared.stageDrag(filesToDrag)
-                    // Return an NSItemProvider with the single file for SwiftUI's
-                    // dropDestination(for: D64File.self) to decode
                     let provider = NSItemProvider()
+
+                    // Set filename so Finder names the file correctly on drop
+                    let ext = stampedFile.fileType.lowercased()
+                    var safeName = stampedFile.filename
+                        .replacingOccurrences(of: "/", with: "_")
+                        .replacingOccurrences(of: ":", with: "_")
+                    if safeName.isEmpty { safeName = "unnamed" }
+                    provider.suggestedName = "\(safeName).\(ext)"
+
+                    // Raw file data — lets Finder save the actual content
+                    provider.registerDataRepresentation(
+                        forTypeIdentifier: UTType.data.identifier,
+                        visibility: .all
+                    ) { completion in
+                        completion(stampedFile.rawData, nil)
+                        return nil
+                    }
+
+                    // D64File JSON — used for DI-to-DI drag between windows
                     if let encoded = try? JSONEncoder().encode(stampedFile) {
                         provider.registerDataRepresentation(
                             forTypeIdentifier: UTType.d64File.identifier,
@@ -1052,6 +1210,98 @@ struct DiskWindowView: View {
         }
     }
 
+    func exportAllToMac() {
+        let exportable = disk.files.filter { !$0.rawData.isEmpty }
+        guard !exportable.isEmpty else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.message = "Export \(exportable.count) file(s) from \(disk.diskName.uppercased()) to a folder"
+        panel.prompt = "Export Here"
+        guard panel.runModal() == .OK, let folderURL = panel.url else { return }
+
+        var exported = 0
+        var failed = 0
+        for file in exportable {
+            var safeName = file.filename
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: ":", with: "_")
+                .replacingOccurrences(of: "\0", with: "")
+            if safeName.isEmpty { safeName = "unnamed" }
+            let ext = file.fileType.lowercased()
+            var destURL = folderURL.appendingPathComponent("\(safeName).\(ext)")
+            var counter = 1
+            while FileManager.default.fileExists(atPath: destURL.path) {
+                destURL = folderURL.appendingPathComponent("\(safeName)_\(counter).\(ext)")
+                counter += 1
+            }
+            do {
+                try document.exportFile(file, to: destURL)
+                exported += 1
+            } catch {
+                failed += 1
+            }
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Export Complete"
+        alert.informativeText = failed == 0
+            ? "\(exported) file(s) exported successfully."
+            : "\(exported) file(s) exported, \(failed) failed."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    func exportSelectedToMac() {
+        let selectedFiles = disk.files.enumerated()
+            .filter { selection.isSelected($0.element, at: $0.offset) && !$0.element.rawData.isEmpty }
+            .map { $0.element }
+        guard !selectedFiles.isEmpty else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.message = "Export \(selectedFiles.count) selected file(s) from \(disk.diskName.uppercased()) to a folder"
+        panel.prompt = "Export Here"
+        guard panel.runModal() == .OK, let folderURL = panel.url else { return }
+
+        var exported = 0
+        var failed = 0
+        for file in selectedFiles {
+            var safeName = file.filename
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: ":", with: "_")
+                .replacingOccurrences(of: "\0", with: "")
+            if safeName.isEmpty { safeName = "unnamed" }
+            let ext = file.fileType.lowercased()
+            var destURL = folderURL.appendingPathComponent("\(safeName).\(ext)")
+            var counter = 1
+            while FileManager.default.fileExists(atPath: destURL.path) {
+                destURL = folderURL.appendingPathComponent("\(safeName)_\(counter).\(ext)")
+                counter += 1
+            }
+            do {
+                try document.exportFile(file, to: destURL)
+                exported += 1
+            } catch {
+                failed += 1
+            }
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Export Complete"
+        alert.informativeText = failed == 0
+            ? "\(exported) file(s) exported successfully."
+            : "\(exported) file(s) exported, \(failed) failed."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
     func importFromMac() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
@@ -1090,8 +1340,8 @@ struct DiskWindowView: View {
     func resizeWindow() {
         DispatchQueue.main.async {
             guard let window = NSApplication.shared.keyWindow else { return }
-            let contentLines = max(8, min(disk.files.count + 4, maxVisibleLines))
-            let contentHeight = CGFloat(contentLines) * lineHeight + padding * 2 + infoPanelHeight + 16
+            let contentLines = max(14, min(disk.files.count + 4, maxVisibleLines))
+            let contentHeight = CGFloat(contentLines) * lineHeight + padding * 2 + 16
             let frame = NSRect(
                 x: window.frame.minX,
                 y: window.frame.maxY - contentHeight,
@@ -1111,7 +1361,7 @@ struct DiskWindowView: View {
         DispatchQueue.main.async {
             guard let window = NSApplication.shared.keyWindow else { return }
             let contentLines = min(disk.files.count + 4, maxVisibleLines)
-            let neededHeight = CGFloat(contentLines) * lineHeight + padding * 2 + infoPanelHeight + 16
+            let neededHeight = CGFloat(contentLines) * lineHeight + padding * 2 + 16
             if neededHeight > window.frame.height {
                 // Grow downward (keep top edge fixed)
                 let frame = NSRect(
@@ -1126,24 +1376,6 @@ struct DiskWindowView: View {
         }
     }
 
-    /// When info panel is toggled: grow downward when opening, shrink upward when closing.
-    /// Always keep the top edge fixed.
-    func resizeWindowForInfoToggle() {
-        DispatchQueue.main.async {
-            guard let window = NSApplication.shared.keyWindow else { return }
-            let contentLines = min(disk.files.count + 4, maxVisibleLines)
-            let targetHeight = CGFloat(contentLines) * lineHeight + padding * 2 + infoPanelHeight + 16
-            // Keep the top edge pinned, adjust the bottom
-            let frame = NSRect(
-                x: window.frame.minX,
-                y: window.frame.maxY - targetHeight,
-                width: windowWidth,
-                height: targetHeight
-            )
-            window.setFrame(frame, display: true, animate: true)
-            window.maxSize = NSSize(width: windowWidth, height: 10000)
-        }
-    }
 }
 
 struct Triangle: Shape {

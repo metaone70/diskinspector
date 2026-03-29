@@ -240,6 +240,19 @@ struct D64Disk {
     var rawTracks:  [GCRTrackInfo]?   // set for G64/NIB only
 }
 
+// MARK: - Deleted Entry
+
+struct DeletedEntry: Identifiable {
+    let id = UUID()
+    let filename: String
+    let track: UInt8
+    let sector: UInt8
+    let blocks: Int
+    let dirTrackNum: Int
+    let dirSectorNum: Int
+    let entryIndex: Int  // 0..7 within the directory sector
+}
+
 // MARK: - D64Parser
 
 struct D64Parser {
@@ -559,6 +572,86 @@ struct D64Parser {
             curTrack  = nTrack
             curSector = nSector
         }
+    }
+
+    // MARK: - Mark Sectors Used in BAM (for file recovery)
+
+    static func markSectorsUsedInBAM(bytes: inout [UInt8], startTrack: UInt8,
+                                      startSector: UInt8, format: DiskFormat) {
+        var curTrack  = startTrack
+        var curSector = startSector
+        var visited   = Set<String>()
+
+        while curTrack != 0 && curTrack <= UInt8(format.totalTracks) {
+            let key = "\(curTrack):\(curSector)"
+            if visited.contains(key) { break }
+            visited.insert(key)
+
+            let s = offset(track: Int(curTrack), sector: Int(curSector), format: format)
+            guard s + 2 <= bytes.count else { break }
+            let nTrack  = bytes[s]
+            let nSector = bytes[s + 1]
+
+            let t       = Int(curTrack)
+            let byteIdx = Int(curSector) / 8
+            let bitIdx  = Int(curSector) % 8
+            let (fcOff, bmOff) = bamOffsets(track: t, format: format)
+            let isFree = (bytes[bmOff + byteIdx] >> bitIdx) & 1 == 1
+            if isFree {
+                bytes[bmOff + byteIdx] &= ~(1 << bitIdx)
+                if bytes[fcOff] > 0 { bytes[fcOff] -= 1 }
+            }
+
+            curTrack  = nTrack
+            curSector = nSector
+        }
+    }
+
+    // MARK: - Find Deleted Files
+
+    static func findDeletedFiles(data: Data, format: DiskFormat) -> [DeletedEntry] {
+        guard !format.isArchive, format.dirTrack > 0 else { return [] }
+        let bytes      = [UInt8](data)
+        var deleted    = [DeletedEntry]()
+        var dirTrack   = UInt8(format.dirTrack)
+        var dirSector  = UInt8(format.dirSector)
+        var visited    = Set<String>()
+
+        while dirTrack != 0 {
+            let key = "\(dirTrack):\(dirSector)"
+            if visited.contains(key) { break }
+            visited.insert(key)
+
+            let off = offset(track: Int(dirTrack), sector: Int(dirSector), format: format)
+            guard off + 256 <= bytes.count else { break }
+            let nextTrack  = bytes[off]
+            let nextSector = bytes[off + 1]
+
+            for entry in 0..<8 {
+                let base = off + 2 + entry * 32
+                guard base + 32 <= bytes.count else { continue }
+                let typeByte = bytes[base]
+                let fTrack   = bytes[base + 1]
+                let fSector  = bytes[base + 2]
+
+                // Scratched = typeByte 0x00 with a non-zero start pointer
+                if typeByte == 0x00 && fTrack != 0 && fTrack <= UInt8(format.totalTracks) {
+                    let name   = petsciiToString(bytes[(base + 3)..<(base + 19)])
+                    let blocks = Int(bytes[base + 28]) | (Int(bytes[base + 29]) << 8)
+                    deleted.append(DeletedEntry(
+                        filename: name.isEmpty ? "(unnamed)" : name,
+                        track: fTrack, sector: fSector,
+                        blocks: blocks,
+                        dirTrackNum: Int(dirTrack), dirSectorNum: Int(dirSector),
+                        entryIndex: entry
+                    ))
+                }
+            }
+
+            dirTrack  = nextTrack
+            dirSector = nextSector
+        }
+        return deleted
     }
 
     // MARK: - Inject File
@@ -948,13 +1041,151 @@ struct D64Parser {
         return nil
     }
 
+    // MARK: - Patch File Type Byte
+
+    /// Sets the full file-type byte (type + lock/splat bits) for the file at directory index.
+    static func patchFileTypeByte(in bytes: [UInt8], index: Int, newTypeByte: UInt8) -> [UInt8]? {
+        guard let format = DiskFormat.detect(size: bytes.count) else { return nil }
+        var b = bytes
+        var dirTrackNum  = UInt8(format.dirTrack)
+        var dirSectorNum = UInt8(format.dirSector)
+        var visited  = Set<String>()
+        var current  = 0
+        while dirTrackNum != 0 {
+            let key = "\(dirTrackNum):\(dirSectorNum)"
+            if visited.contains(key) { break }
+            visited.insert(key)
+            let sectorOff = offset(track: Int(dirTrackNum), sector: Int(dirSectorNum), format: format)
+            let nTrack  = b[sectorOff]
+            let nSector = b[sectorOff + 1]
+            for entry in 0..<8 {
+                let base = sectorOff + 2 + (entry * 32)
+                if b[base] == 0x00 { continue }
+                if current == index { b[base] = newTypeByte; return b }
+                current += 1
+            }
+            dirTrackNum  = nTrack
+            dirSectorNum = nSector
+        }
+        return nil
+    }
+
+    // MARK: - Fix Block Count
+
+    private static func countSectorChain(in bytes: [UInt8], track: Int, sector: Int, format: DiskFormat) -> Int {
+        var count   = 0
+        var t       = track
+        var s       = sector
+        var visited = Set<String>()
+        while t != 0 {
+            let key = "\(t):\(s)"
+            if visited.contains(key) { break }
+            visited.insert(key)
+            let off = offset(track: t, sector: s, format: format)
+            guard off + 1 < bytes.count else { break }
+            count += 1
+            t = Int(bytes[off])
+            s = Int(bytes[off + 1])
+        }
+        return count
+    }
+
+    /// Recalculates the block count for the file at directory index by walking its sector chain.
+    static func fixBlockCount(in bytes: [UInt8], index: Int) -> [UInt8]? {
+        guard let format = DiskFormat.detect(size: bytes.count) else { return nil }
+        var b = bytes
+        var dirTrackNum  = UInt8(format.dirTrack)
+        var dirSectorNum = UInt8(format.dirSector)
+        var visited  = Set<String>()
+        var current  = 0
+        while dirTrackNum != 0 {
+            let key = "\(dirTrackNum):\(dirSectorNum)"
+            if visited.contains(key) { break }
+            visited.insert(key)
+            let sectorOff = offset(track: Int(dirTrackNum), sector: Int(dirSectorNum), format: format)
+            let nTrack  = b[sectorOff]
+            let nSector = b[sectorOff + 1]
+            for entry in 0..<8 {
+                let base = sectorOff + 2 + (entry * 32)
+                if b[base] == 0x00 { continue }
+                if current == index {
+                    let fTrack  = Int(b[base + 1])
+                    let fSector = Int(b[base + 2])
+                    guard fTrack != 0 else { return nil }
+                    let count = countSectorChain(in: b, track: fTrack, sector: fSector, format: format)
+                    b[base + 28] = UInt8(count & 0xFF)
+                    b[base + 29] = UInt8((count >> 8) & 0xFF)
+                    return b
+                }
+                current += 1
+            }
+            dirTrackNum  = nTrack
+            dirSectorNum = nSector
+        }
+        return nil
+    }
+
+    // MARK: - Sort Files
+
+    enum SortKey { case name, fileType, blocks }
+
+    /// Sorts non-empty directory entries by the given key; empty slots stay at the end.
+    static func sortFiles(in bytes: [UInt8], by sortKey: SortKey, ascending: Bool) -> [UInt8]? {
+        guard let format = DiskFormat.detect(size: bytes.count) else { return nil }
+        var b = bytes
+        var slotOffsets: [Int] = []
+        var dirTrackNum  = UInt8(format.dirTrack)
+        var dirSectorNum = UInt8(format.dirSector)
+        var visited  = Set<String>()
+        while dirTrackNum != 0 {
+            let visitKey = "\(dirTrackNum):\(dirSectorNum)"
+            if visited.contains(visitKey) { break }
+            visited.insert(visitKey)
+            let sectorOff = offset(track: Int(dirTrackNum), sector: Int(dirSectorNum), format: format)
+            let nTrack  = b[sectorOff]
+            let nSector = b[sectorOff + 1]
+            for entry in 0..<8 { slotOffsets.append(sectorOff + 2 + entry * 32) }
+            dirTrackNum  = nTrack
+            dirSectorNum = nSector
+        }
+        var validEntries: [[UInt8]] = []
+        var validSlots:   [Int]     = []
+        for base in slotOffsets {
+            if b[base] == 0x00 { continue }
+            validEntries.append(Array(b[base..<(base + 32)]))
+            validSlots.append(base)
+        }
+        validEntries.sort { entA, entB in
+            let less: Bool
+            switch sortKey {
+            case .name:
+                less = petsciiToString(entA[3..<19]) < petsciiToString(entB[3..<19])
+            case .fileType:
+                less = (entA[0] & 0x07) < (entB[0] & 0x07)
+            case .blocks:
+                let a = Int(entA[28]) | (Int(entA[29]) << 8)
+                let c = Int(entB[28]) | (Int(entB[29]) << 8)
+                less = a < c
+            }
+            return ascending ? less : !less
+        }
+        for (i, base) in validSlots.enumerated() {
+            for j in 0..<32 {
+                let a = base + j
+                if a % 256 == 0 || a % 256 == 1 { continue }  // never overwrite sector link bytes
+                b[a] = validEntries[i][j]
+            }
+        }
+        return b
+    }
+
     // MARK: - Rename Disk
 
     static func renameDisk(in bytes: [UInt8], name: String, id: String) -> [UInt8]? {
         guard let format = DiskFormat.detect(size: bytes.count) else { return nil }
         var b = bytes
-        let nameBytes = Array(name.uppercased().utf8)
-        let idBytes   = Array(id.uppercased().utf8)
+        let nameBytes = stringToPetscii(name.uppercased())
+        let idBytes   = stringToPetscii(id.uppercased())
 
         switch format {
         case .d64, .d71:

@@ -459,6 +459,45 @@ class D64Document: ReferenceFileDocument {
         data = Data(bytes)
     }
 
+    func setFileTypeByte(at index: Int, newTypeByte: UInt8) {
+        guard !diskFormat.isArchive else { return }
+        saveUndo()
+        guard let bytes = D64Parser.patchFileTypeByte(in: [UInt8](data), index: index, newTypeByte: newTypeByte)
+        else { undoStack.removeLast(); return }
+        data = Data(bytes)
+    }
+
+    func fixBlockCount(at index: Int) {
+        guard !diskFormat.isArchive else { return }
+        saveUndo()
+        guard let bytes = D64Parser.fixBlockCount(in: [UInt8](data), index: index)
+        else { undoStack.removeLast(); return }
+        data = Data(bytes)
+    }
+
+    func restoreDeletedFile(_ entry: DeletedEntry, asType: UInt8 = 0x82) {
+        guard !diskFormat.isArchive else { return }
+        saveUndo()
+        var bytes    = [UInt8](data)
+        let off      = D64Parser.offset(track: entry.dirTrackNum, sector: entry.dirSectorNum, format: diskFormat)
+        let base     = off + 2 + entry.entryIndex * 32
+        guard base < bytes.count else { undoStack.removeLast(); return }
+        bytes[base]  = asType
+        D64Parser.markSectorsUsedInBAM(bytes: &bytes,
+                                       startTrack: entry.track,
+                                       startSector: entry.sector,
+                                       format: diskFormat)
+        data = Data(bytes)
+    }
+
+    func sortFiles(by sortKey: D64Parser.SortKey, ascending: Bool) {
+        guard !diskFormat.isArchive else { return }
+        saveUndo()
+        guard let bytes = D64Parser.sortFiles(in: [UInt8](data), by: sortKey, ascending: ascending)
+        else { undoStack.removeLast(); return }
+        data = Data(bytes)
+    }
+
     func exportFile(_ file: D64File, to url: URL) throws {
         try file.rawData.write(to: url)
     }
