@@ -179,6 +179,9 @@ extension UTType {
                                 conformingTo: .data)
     static let nibDisk = UTType(exportedAs: "com.diskinspector.c64nib",
                                 conformingTo: .data)
+    // PC64 container format (P00/S00/U00/R00)
+    static let p00File = UTType(exportedAs: "com.diskinspector.p00",
+                                conformingTo: .data)
 }
 
 // MARK: - GCR Track Info (G64 / NIB archivist data)
@@ -390,6 +393,9 @@ struct D64Parser {
 
     static func parse(data: Data, formatHint: DiskFormat? = nil) -> D64Disk? {
         // Route archive/raw formats to their dedicated parsers
+        if P00Parser.isMagic(data) {
+            return P00Parser.parseAsDisk(data: data)
+        }
         if T64Parser.isMagic(data) {
             return T64Parser.parse(data: data)
         }
@@ -460,6 +466,7 @@ struct D64Parser {
             visited.insert(key)
 
             let sectorOff = offset(track: Int(dirTrack), sector: Int(dirSector), format: format)
+            guard sectorOff + 256 <= bytes.count else { break }
             dirTrack  = bytes[sectorOff]
             dirSector = bytes[sectorOff + 1]
 

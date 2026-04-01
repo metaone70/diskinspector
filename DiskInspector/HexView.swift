@@ -43,7 +43,7 @@ struct HexViewerWindow {
             forName: NSWindow.willCloseNotification,
             object: window, queue: .main
         ) { _ in
-            NSEvent.removeMonitor(monitor)
+            if let m = monitor { NSEvent.removeMonitor(m) }
         }
     }
 }

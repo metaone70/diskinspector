@@ -20,8 +20,9 @@ class D64Document: ReferenceFileDocument {
         // Include our declared types AND any system/third-party types already
         // registered for these extensions — so the Open dialog accepts files
         // regardless of which UTType the system has assigned to them.
-        var types: [UTType] = [.d64Disk, .d71Disk, .d81Disk, .t64Disk, .lnxDisk, .g64Disk, .nibDisk]
-        for ext in ["d64", "d71", "d81", "t64", "lnx", "g64", "nib"] {
+        var types: [UTType] = [.d64Disk, .d71Disk, .d81Disk, .t64Disk, .lnxDisk, .g64Disk, .nibDisk, .p00File]
+        for ext in ["d64", "d71", "d81", "t64", "lnx", "g64", "nib",
+                    "p00", "p01", "p02", "p03", "s00", "s01", "u00", "r00"] {
             if let systemType = UTType(filenameExtension: ext),
                !types.contains(systemType) {
                 types.append(systemType)
@@ -40,7 +41,9 @@ class D64Document: ReferenceFileDocument {
             data = fileData
             savedSnapshot = fileData
             // Detect format: magic bytes first, then content type hint, then size
-            if T64Parser.isMagic(fileData) {
+            if P00Parser.isMagic(fileData) {
+                diskFormat = .t64   // read-only, archive path
+            } else if T64Parser.isMagic(fileData) {
                 diskFormat = .t64
             } else if G64Parser.isMagic(fileData) {
                 diskFormat = .g64
@@ -370,6 +373,93 @@ class D64Document: ReferenceFileDocument {
                 showSaveError(error)
             }
         }
+    }
+
+    /// Save an independent copy of this disk to a new location.
+    /// The current document stays open and unchanged.
+    func cloneDisk() {
+        guard !diskFormat.isArchive else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = diskDisplayName.lowercased() + "-copy." + fileExtension
+        if let knownType = UTType(filenameExtension: fileExtension) {
+            panel.allowedContentTypes = [knownType]
+        } else {
+            panel.allowedContentTypes = [.data]
+        }
+        panel.allowsOtherFileTypes  = false
+        panel.isExtensionHidden     = false
+        panel.message = "Save a copy of \(diskDisplayName) — the original stays open unchanged"
+        if panel.runModal() == .OK, var url = panel.url {
+            if url.pathExtension.lowercased() != fileExtension {
+                url = url.appendingPathExtension(fileExtension)
+            }
+            do {
+                try data.write(to: url)
+            } catch {
+                showSaveError(error)
+            }
+        }
+    }
+
+    /// Import all .prg/.seq/.usr/.p00/.s00 etc. files from a user-chosen folder.
+    func importFromFolder() {
+        guard !diskFormat.isArchive else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles       = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = false
+        panel.message = "Choose a folder — all .prg, .seq, .usr, .p00, .s00 files will be imported"
+        panel.prompt  = "Import From Here"
+        guard panel.runModal() == .OK, let folderURL = panel.url else { return }
+
+        let importable: Set<String> = ["prg","seq","usr","rel",
+                                        "p00","p01","p02","p03","p04","p05","p06","p07","p08","p09",
+                                        "s00","s01","s02","s03","s04","u00","u01","r00","r01"]
+        let contents = (try? FileManager.default.contentsOfDirectory(
+                            at: folderURL, includingPropertiesForKeys: nil)) ?? []
+        let files = contents
+            .filter { importable.contains($0.pathExtension.lowercased()) }
+            .sorted { $0.lastPathComponent.lowercased() < $1.lastPathComponent.lowercased() }
+
+        guard !files.isEmpty else {
+            let alert = NSAlert()
+            alert.messageText     = "No Importable Files Found"
+            alert.informativeText = "No .prg, .seq, .p00, .s00 (etc.) files were found in that folder."
+            alert.runModal()
+            return
+        }
+
+        var imported = 0
+        var skipped  = 0
+        for fileURL in files {
+            guard let fileData = try? Data(contentsOf: fileURL) else { skipped += 1; continue }
+            let ext = fileURL.pathExtension.lowercased()
+            let filename: String
+            let fileType: String
+            let rawData: Data
+            if let p00 = P00Parser.parse(fileData, ext: ext) {
+                (filename, fileType, rawData) = (p00.filename, p00.fileType, p00.rawData)
+            } else {
+                filename = String(fileURL.deletingPathExtension().lastPathComponent
+                    .uppercased().prefix(16).replacingOccurrences(of: " ", with: "."))
+                fileType = ["PRG","SEQ","USR","REL"].contains(ext.uppercased()) ? ext.uppercased() : "PRG"
+                rawData  = fileData
+            }
+            let file = D64File(filename: filename, fileType: fileType,
+                               blocks: (rawData.count + 253) / 254,
+                               track: 0, sector: 0, rawData: rawData)
+            guard let currentDisk = D64Parser.parse(data: data, formatHint: diskFormat),
+                  file.blocks <= currentDisk.freeBlocks else { skipped += 1; continue }
+            injectFile(file)
+            imported += 1
+        }
+
+        let alert = NSAlert()
+        alert.messageText     = "Import Complete"
+        alert.informativeText = skipped > 0
+            ? "\(imported) file\(imported == 1 ? "" : "s") imported, \(skipped) skipped (disk full or unreadable)."
+            : "\(imported) file\(imported == 1 ? "" : "s") imported successfully."
+        alert.runModal()
     }
 
     private func showSaveError(_ error: Error) {

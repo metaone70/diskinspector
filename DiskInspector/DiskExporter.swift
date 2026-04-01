@@ -6,9 +6,7 @@ struct DiskExporter {
 
     // MARK: - Text Export
 
-    static func exportAsText(data: Data) -> String? {
-        guard let disk = D64Parser.parse(data: data) else { return nil }
-
+    static func exportAsText(_ disk: D64Disk) -> String {
         var lines: [String] = []
 
         // Header line
@@ -37,9 +35,7 @@ struct DiskExporter {
 
     // MARK: - HTML Export
 
-    static func exportAsHTML(data: Data) -> String? {
-        guard let disk = D64Parser.parse(data: data) else { return nil }
-
+    static func exportAsHTML(_ disk: D64Disk) -> String {
         let usedBlocks = disk.format.totalBlocks - disk.freeBlocks
         let usedPercent = disk.format.totalBlocks > 0
             ? Int(Double(usedBlocks) / Double(disk.format.totalBlocks) * 100)
@@ -174,10 +170,10 @@ struct DiskExporter {
 
     // MARK: - Save Dialogs
 
-    static func saveAsText(data: Data, diskName: String) {
-        guard let text = exportAsText(data: data) else { return }
+    static func saveAsText(_ disk: D64Disk) {
+        let text = exportAsText(disk)
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = diskName.lowercased() + ".txt"
+        panel.nameFieldStringValue = disk.diskName.lowercased() + ".txt"
         panel.allowedContentTypes = [.plainText]
         panel.message = "Export Directory Listing as Text"
         if panel.runModal() == .OK, let url = panel.url {
@@ -185,10 +181,10 @@ struct DiskExporter {
         }
     }
 
-    static func saveAsHTML(data: Data, diskName: String) {
-        guard let html = exportAsHTML(data: data) else { return }
+    static func saveAsHTML(_ disk: D64Disk) {
+        let html = exportAsHTML(disk)
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = diskName.lowercased() + ".html"
+        panel.nameFieldStringValue = disk.diskName.lowercased() + ".html"
         panel.allowedContentTypes = [.html]
         panel.message = "Export Directory Listing as HTML"
         if panel.runModal() == .OK, let url = panel.url {
@@ -199,8 +195,7 @@ struct DiskExporter {
     // MARK: - PNG Export
 
     @MainActor
-    static func saveAsPNG(data: Data, diskName: String) {
-        guard let disk = D64Parser.parse(data: data) else { return }
+    static func saveAsPNG(_ disk: D64Disk) {
         let view     = DirectoryPNGView(disk: disk)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2.0
@@ -209,7 +204,7 @@ struct DiskExporter {
               let bitmap = NSBitmapImageRep(data: tiff),
               let png    = bitmap.representation(using: .png, properties: [:]) else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = diskName.lowercased()
+        panel.nameFieldStringValue = disk.diskName.lowercased()
             .replacingOccurrences(of: " ", with: "_") + ".png"
         panel.allowedContentTypes = [.png]
         panel.message = "Export Directory Listing as PNG"

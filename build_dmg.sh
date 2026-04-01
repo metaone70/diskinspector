@@ -8,7 +8,7 @@
 set -e
 
 APP_NAME="Disk Inspector"
-VERSION="1.5"
+VERSION="1.6"
 DMG_NAME="DiskInspector-${VERSION}"
 DMG_VOLUME="Disk Inspector"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -74,6 +74,12 @@ echo "Mounted at: $MOUNT_POINT"
 
 echo "Copying app..."
 cp -R "$APP_PATH" "$MOUNT_POINT/Disk Inspector.app"
+
+# Strip quarantine from the copied app so it opens on this machine without "damaged" errors.
+# Note: for end users who *download* the DMG, they will need to run:
+#   xattr -cr "/Applications/Disk Inspector.app"
+# A Developer ID certificate + notarization is required for transparent public distribution.
+xattr -cr "$MOUNT_POINT/Disk Inspector.app"
 
 echo "Adding Applications shortcut..."
 ln -s /Applications "$MOUNT_POINT/Applications"
@@ -143,5 +149,17 @@ echo "=================================="
 echo "  DMG created: $DMG_OUTPUT"
 echo "=================================="
 echo "  Size: $(du -h "$DMG_OUTPUT" | cut -f1)"
+echo ""
+echo "  ⚠  Code signing status:"
+SIGN_ID=$(security find-identity -v -p codesigning 2>/dev/null | grep "Developer ID Application" | head -1)
+if [ -n "$SIGN_ID" ]; then
+    echo "     Developer ID found — app is distribution-ready"
+else
+    echo "     No Developer ID certificate found. App is ad-hoc signed."
+    echo "     Users who download this DMG must run:"
+    echo "       xattr -cr \"/Applications/Disk Inspector.app\""
+    echo "     To distribute publicly without this step, enroll in the"
+    echo "     Apple Developer Program and notarize the app."
+fi
 echo ""
 open -R "$DMG_OUTPUT"

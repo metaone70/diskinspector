@@ -233,10 +233,12 @@ struct DiskValidator {
             if visited.contains(key) { break }
             visited.insert(key)
             let off = D64Parser.offset(track: Int(dirTrack), sector: Int(dirSector), format: format)
+            guard off + 256 <= bytes.count else { break }
             dirTrack = bytes[off]
             dirSector = bytes[off + 1]
             for entry in 0..<8 {
                 let base = off + 2 + entry * 32
+                guard base + 30 < bytes.count else { break }
                 let typeByte = bytes[base]
                 if typeByte == 0x00 { continue }
                 let nameSlice = bytes[(base + 3)..<(base + 19)]
@@ -265,6 +267,7 @@ struct DiskValidator {
             visited.insert(key)
             sectors.insert(key)
             let off = D64Parser.offset(track: Int(dirTrack), sector: Int(dirSector), format: format)
+            guard off + 2 <= bytes.count else { break }
             dirTrack = bytes[off]
             dirSector = bytes[off + 1]
         }

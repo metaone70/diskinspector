@@ -36,6 +36,19 @@ final class DocumentRegistry {
 struct DiskInspectorApp: App {
     @State private var pendingFormat: DiskFormat = .d64
 
+    init() {
+        // Ensure the Quick Look extension is registered from this app bundle.
+        // pluginkit is a no-op if already registered from the same path;
+        // if pointing at DerivedData (developer machine) this corrects it.
+        if let extURL = Bundle.main.builtInPlugInsURL?
+            .appendingPathComponent("DiskInspectorQ.appex") {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/usr/bin/pluginkit")
+            p.arguments = ["-a", extURL.path]
+            try? p.run()
+        }
+    }
+
     var body: some Scene {
         DocumentGroup(newDocument: { D64Document(format: pendingFormat) }) { file in
             ContentView(document: file.document)
@@ -100,8 +113,27 @@ struct DiskInspectorApp: App {
                 }
             }
 
+            // ── File extras ──
+            CommandGroup(after: .saveItem) {
+                Button("Clone Disk…") {
+                    guard let window = NSApplication.shared.keyWindow,
+                          let doc = DocumentRegistry.shared.document(for: window)
+                    else { return }
+                    doc.cloneDisk()
+                }
+            }
+
             // ── Tools ──
             CommandMenu("Tools") {
+                Button("Import from Folder…") {
+                    guard let window = NSApplication.shared.keyWindow,
+                          let doc = DocumentRegistry.shared.document(for: window)
+                    else { return }
+                    doc.importFromFolder()
+                }
+
+                Divider()
+
                 Button("Separators…") {
                     SeparatorLibraryWindow.open()
                 }
@@ -111,29 +143,26 @@ struct DiskInspectorApp: App {
 
                 Button("Export Directory as Text…") {
                     guard let window = NSApplication.shared.keyWindow,
-                          let doc = DocumentRegistry.shared.document(for: window)
+                          let doc = DocumentRegistry.shared.document(for: window),
+                          let disk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat)
                     else { return }
-                    if let disk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat) {
-                        DiskExporter.saveAsText(data: doc.data, diskName: disk.diskName)
-                    }
+                    DiskExporter.saveAsText(disk)
                 }
 
                 Button("Export Directory as HTML…") {
                     guard let window = NSApplication.shared.keyWindow,
-                          let doc = DocumentRegistry.shared.document(for: window)
+                          let doc = DocumentRegistry.shared.document(for: window),
+                          let disk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat)
                     else { return }
-                    if let disk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat) {
-                        DiskExporter.saveAsHTML(data: doc.data, diskName: disk.diskName)
-                    }
+                    DiskExporter.saveAsHTML(disk)
                 }
 
                 Button("Export Directory as PNG…") {
                     guard let window = NSApplication.shared.keyWindow,
-                          let doc = DocumentRegistry.shared.document(for: window)
+                          let doc = DocumentRegistry.shared.document(for: window),
+                          let disk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat)
                     else { return }
-                    if let disk = D64Parser.parse(data: doc.data, formatHint: doc.diskFormat) {
-                        DiskExporter.saveAsPNG(data: doc.data, diskName: disk.diskName)
-                    }
+                    DiskExporter.saveAsPNG(disk)
                 }
             }
 
@@ -214,9 +243,13 @@ struct AboutView: View {
                 .font(.custom(monoFont, size: 12))
                 .foregroundColor(Color.c64LightBlue)
 
-            Text("T64 · LNX · G64 · NIB")
+            Text("T64 · LNX · G64 · NIB · P00")
                 .font(.custom(monoFont, size: 11))
                 .foregroundColor(Color.c64LightBlue.opacity(0.7))
+
+            Text("Quick Look preview in Finder")
+                .font(.custom(monoFont, size: 10))
+                .foregroundColor(Color.c64LightBlue.opacity(0.5))
 
             Spacer().frame(height: 4)
 

@@ -67,7 +67,7 @@ struct LNXParser {
             let filename = allTokens[tIdx].trimmingCharacters(in: .whitespaces)
             let blocksStr = allTokens[tIdx + 1].trimmingCharacters(in: .whitespaces)
             let typeStr = allTokens[tIdx + 2].trimmingCharacters(in: .whitespaces)
-            let lastByteStr = allTokens[tIdx + 3].trimmingCharacters(in: .whitespaces)
+            _ = allTokens[tIdx + 3]  // lastByte field — not used by this parser
             tIdx += 4
 
             let blocks = Int(blocksStr) ?? 0

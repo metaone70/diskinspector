@@ -1,4 +1,4 @@
-# Disk Inspector v1.5
+# Disk Inspector v1.6
 
 **A Commodore 64/128 disk image editor for macOS**
 
@@ -21,6 +21,7 @@ Drag **Disk Inspector.app** to your **Applications** folder.
 | LNX | Lynx archive | Read only |
 | G64 | Raw GCR disk image (VICE format) | Read only |
 | NIB | Raw GCR disk image (NibTools/MNIB format) | Read only |
+| P00/S00 | PC64 container (PRG/SEQ/USR/REL) | Read only |
 
 ## Features
 
@@ -36,9 +37,17 @@ Drag **Disk Inspector.app** to your **Applications** folder.
 - Visual BAM map with sector-level view (including G64/NIB)
 - Disk integrity validation (including G64/NIB)
 - Separator library with 17 built-in PETSCII patterns, drag-and-drop, and custom separator support
+- **File type change** — right-click any file → Change Type to switch between PRG / SEQ / USR / REL
+- **Lock / Splat flags** — right-click → Lock/Unlock (protected bit, shown as `<`) and Mark/Clear Splat (closed bit, shown as `*` prefix)
+- **Fix Block Count** — right-click → Fix Block Count recalculates block count by walking the actual sector chain
+- **Sort directory** — ↕ SORT toolbar button sorts by Name, Type, or Blocks (ascending or descending)
 - **Export directory listing** as plain text, styled HTML, or PNG image (C64-styled, 2× retina, suitable for itch.io/social sharing)
 - **Sector Chain Viewer** — right-click any file → View Sector Chain… to inspect the full T/S link chain with byte counts per sector
 - **Recover deleted files** — ♻ RECOVER toolbar button finds scratched files whose data is still on disk and restores them with one click
+- **Quick Look preview** — press Space on any .d64, .d71, .d81, or .t64 file in Finder for an instant directory listing (no need to open the app)
+- **Clone Disk** — File menu → Clone Disk… saves an independent copy without closing or modifying the original
+- **Import from Folder** — Tools menu → Import from Folder… imports all .prg/.seq/.usr/.rel and P00/S00 files from a Mac folder at once
+- **P00/S00 support** — PC64 container files (.P00, .S00, .U00, .R00) imported correctly using the embedded C64 filename
 - Launch disks and files directly in VICE emulator
 - Track Map archivist view for G64/NIB: per-track GCR analysis, error counts, copy-protection indicators
 

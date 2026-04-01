@@ -564,61 +564,157 @@ struct DiskWindowView: View {
 
     // ── List content ───────────────────────────────────────
 
-    var listContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
+    // ── Disk header row ────────────────────────────────────
 
-            HStack(spacing: 0) {
-                Text(" 0   ")
+    var diskHeaderRow: some View {
+        HStack(spacing: 0) {
+            Text(" 0   ")
+                .font(.custom("C64 Pro Mono", size: fontSize))
+                .foregroundColor(.white)
+
+            if renamingDisk {
+                Text("\"")
                     .font(.custom("C64 Pro Mono", size: fontSize))
                     .foregroundColor(.white)
 
-                if renamingDisk {
-                    Text("\"")
-                        .font(.custom("C64 Pro Mono", size: fontSize))
-                        .foregroundColor(.white)
+                C64TextField(
+                    text: $diskNameText,
+                    fontSize: fontSize,
+                    onSubmit: { commitDiskRename() },
+                    onEscape: { renamingDisk = false }
+                )
+                .frame(width: 160, height: lineHeight)
 
-                    C64TextField(
-                        text: $diskNameText,
-                        fontSize: fontSize,
-                        onSubmit: { commitDiskRename() },
-                        onEscape: { renamingDisk = false }
-                    )
-                    .frame(width: 160, height: lineHeight)
+                Text("\" ")
+                    .font(.custom("C64 Pro Mono", size: fontSize))
+                    .foregroundColor(.white)
 
-                    Text("\" ")
-                        .font(.custom("C64 Pro Mono", size: fontSize))
-                        .foregroundColor(.white)
+                C64TextField(
+                    text: $diskIDText,
+                    fontSize: fontSize,
+                    autoFocus: false,
+                    onSubmit: { commitDiskRename() },
+                    onEscape: { renamingDisk = false }
+                )
+                .frame(width: 40, height: lineHeight)
 
-                    C64TextField(
-                        text: $diskIDText,
-                        fontSize: fontSize,
-                        autoFocus: false,
-                        onSubmit: { commitDiskRename() },
-                        onEscape: { renamingDisk = false }
-                    )
-                    .frame(width: 40, height: lineHeight)
+                Text(" \(disk.format.dosVersion)")
+                    .font(.custom("C64 Pro Mono", size: fontSize))
+                    .foregroundColor(.white)
 
-                    Text(" \(disk.format.dosVersion)")
-                        .font(.custom("C64 Pro Mono", size: fontSize))
-                        .foregroundColor(.white)
+            } else {
+                Text("\"\(disk.diskName.uppercased())\" \(disk.diskID.uppercased()) \(disk.format.dosVersion)")
+                    .font(.custom("C64 Pro Mono", size: fontSize))
+                    .foregroundColor(.white)
+                    .onTapGesture(count: 2) {
+                        guard !disk.format.isArchive else { return }
+                        diskNameText = disk.diskName
+                        diskIDText   = disk.diskID
+                        renamingDisk = true
+                    }
+            }
 
-                } else {
-                    Text("\"\(disk.diskName.uppercased())\" \(disk.diskID.uppercased()) \(disk.format.dosVersion)")
-                        .font(.custom("C64 Pro Mono", size: fontSize))
-                        .foregroundColor(.white)
-                        .onTapGesture(count: 2) {
-                            guard !disk.format.isArchive else { return }
-                            diskNameText = disk.diskName
-                            diskIDText   = disk.diskID
-                            renamingDisk = true
-                        }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, minHeight: lineHeight)
+        .background(Color.c64Blue)
+        .lineLimit(1)
+    }
+
+    // ── Footer buttons ─────────────────────────────────────
+
+    var footerButtons: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if disk.format != .t64 && disk.format != .lnx {
+                Text("\(disk.freeBlocks) BLOCKS FREE.")
+                    .font(.custom("C64 Pro Mono", size: fontSize))
+                    .foregroundColor(Color.c64Blue)
+                    .frame(height: lineHeight)
+            }
+
+            HStack(spacing: 0) {
+                if disk.format != .t64 && disk.format != .lnx {
+                    Button(action: {
+                        let issues = DiskValidator.validate(data: document.analysableData)
+                        ValidationWindow.open(issues: issues, diskName: disk.diskName)
+                    }) {
+                        Text("✓ VALIDATE")
+                            .font(.custom("C64 Pro Mono", size: 11))
+                            .foregroundColor(Color.c64LightBlue)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 12)
+
+                    Button(action: {
+                        BAMViewWindow.open(document: document)
+                    }) {
+                        Text("▦ BAM")
+                            .font(.custom("C64 Pro Mono", size: 11))
+                            .foregroundColor(Color.c64LightBlue)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 12)
                 }
 
-                Spacer()
+                if !disk.format.isArchive {
+                    Button(action: {
+                        RecoveryWindow.open(document: document, diskName: disk.diskName)
+                    }) {
+                        Text("♻ RECOVER")
+                            .font(.custom("C64 Pro Mono", size: 11))
+                            .foregroundColor(Color.c64LightBlue)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 12)
+                }
+
+                if disk.format == .g64 || disk.format == .nib {
+                    Button(action: {
+                        TrackMapWindow.open(disk: disk)
+                    }) {
+                        Text("▤ TRACKS")
+                            .font(.custom("C64 Pro Mono", size: 11))
+                            .foregroundColor(Color.c64LightBlue)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 12)
+                }
+
+                if !disk.format.isArchive && !disk.files.isEmpty {
+                    Menu {
+                        Button("Name (A→Z)")    { document.sortFiles(by: .name,     ascending: true)  }
+                        Button("Name (Z→A)")    { document.sortFiles(by: .name,     ascending: false) }
+                        Divider()
+                        Button("Type")          { document.sortFiles(by: .fileType, ascending: true)  }
+                        Divider()
+                        Button("Blocks (↑)")    { document.sortFiles(by: .blocks,   ascending: true)  }
+                        Button("Blocks (↓)")    { document.sortFiles(by: .blocks,   ascending: false) }
+                    } label: {
+                        Text("↕ SORT")
+                            .font(.custom("C64 Pro Mono", size: 11))
+                            .foregroundColor(Color.c64LightBlue)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .padding(.trailing, 12)
+                }
+
+                Button(action: { showingInfo.toggle() }) {
+                    Text(showingInfo ? "▲ INFO" : "▼ INFO")
+                        .font(.custom("C64 Pro Mono", size: 11))
+                        .foregroundColor(Color.c64LightBlue)
+                }
+                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity, minHeight: lineHeight)
-            .background(Color.c64Blue)
-            .lineLimit(1)
+        }
+    }
+
+    // ── List content ───────────────────────────────────────
+
+    var listContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+
+            diskHeaderRow
 
             ForEach(Array(zip(disk.files.indices, disk.files)), id: \.1.id) { index, file in
                 let isLocked = file.fileTypeByte & 0x40 != 0
@@ -685,90 +781,7 @@ struct DiskWindowView: View {
 
             Spacer(minLength: 0)
 
-            // Blocks free (own row) + buttons row below
-            VStack(alignment: .leading, spacing: 4) {
-                if disk.format != .t64 && disk.format != .lnx {
-                    Text("\(disk.freeBlocks) BLOCKS FREE.")
-                        .font(.custom("C64 Pro Mono", size: fontSize))
-                        .foregroundColor(Color.c64Blue)
-                        .frame(height: lineHeight)
-                }
-
-                HStack(spacing: 0) {
-                    if disk.format != .t64 && disk.format != .lnx {
-                        Button(action: {
-                            let issues = DiskValidator.validate(data: document.analysableData)
-                            ValidationWindow.open(issues: issues, diskName: disk.diskName)
-                        }) {
-                            Text("✓ VALIDATE")
-                                .font(.custom("C64 Pro Mono", size: 11))
-                                .foregroundColor(Color.c64LightBlue)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 12)
-
-                        Button(action: {
-                            BAMViewWindow.open(document: document)
-                        }) {
-                            Text("▦ BAM")
-                                .font(.custom("C64 Pro Mono", size: 11))
-                                .foregroundColor(Color.c64LightBlue)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 12)
-                    }
-
-                    if !disk.format.isArchive {
-                        Button(action: {
-                            RecoveryWindow.open(document: document, diskName: disk.diskName)
-                        }) {
-                            Text("♻ RECOVER")
-                                .font(.custom("C64 Pro Mono", size: 11))
-                                .foregroundColor(Color.c64LightBlue)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 12)
-                    }
-
-                    if disk.format == .g64 || disk.format == .nib {
-                        Button(action: {
-                            TrackMapWindow.open(disk: disk)
-                        }) {
-                            Text("▤ TRACKS")
-                                .font(.custom("C64 Pro Mono", size: 11))
-                                .foregroundColor(Color.c64LightBlue)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 12)
-                    }
-
-                    if !disk.format.isArchive && !disk.files.isEmpty {
-                        Menu {
-                            Button("Name (A→Z)")    { document.sortFiles(by: .name,     ascending: true)  }
-                            Button("Name (Z→A)")    { document.sortFiles(by: .name,     ascending: false) }
-                            Divider()
-                            Button("Type")          { document.sortFiles(by: .fileType, ascending: true)  }
-                            Divider()
-                            Button("Blocks (↑)")    { document.sortFiles(by: .blocks,   ascending: true)  }
-                            Button("Blocks (↓)")    { document.sortFiles(by: .blocks,   ascending: false) }
-                        } label: {
-                            Text("↕ SORT")
-                                .font(.custom("C64 Pro Mono", size: 11))
-                                .foregroundColor(Color.c64LightBlue)
-                        }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
-                        .padding(.trailing, 12)
-                    }
-
-                    Button(action: { showingInfo.toggle() }) {
-                        Text(showingInfo ? "▲ INFO" : "▼ INFO")
-                            .font(.custom("C64 Pro Mono", size: 11))
-                            .foregroundColor(Color.c64LightBlue)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            footerButtons
 
             if showingInfo {
                 infoPanel
@@ -802,16 +815,19 @@ struct DiskWindowView: View {
                 Button("Import from Mac…") {
                     importFromMac()
                 }
+                Button("Import from Folder…") {
+                    importFromFolder()
+                }
                 Divider()
             }
             Button("Export Directory as Text…") {
-                DiskExporter.saveAsText(data: document.data, diskName: disk.diskName)
+                DiskExporter.saveAsText(disk)
             }
             Button("Export Directory as HTML…") {
-                DiskExporter.saveAsHTML(data: document.data, diskName: disk.diskName)
+                DiskExporter.saveAsHTML(disk)
             }
             Button("Export Directory as PNG…") {
-                DiskExporter.saveAsPNG(data: document.data, diskName: disk.diskName)
+                DiskExporter.saveAsPNG(disk)
             }
         }
     }
@@ -1112,6 +1128,9 @@ struct DiskWindowView: View {
                     Button("Import from Mac…") {
                         importFromMac()
                     }
+                    Button("Import from Folder…") {
+                        importFromFolder()
+                    }
                 }
             }
         }
@@ -1314,26 +1333,32 @@ struct DiskWindowView: View {
         }
     }
 
+    func importFromFolder() {
+        document.importFromFolder()
+    }
+
     func importFile(from url: URL) {
         guard let data = try? Data(contentsOf: url) else { return }
-        let name = url.deletingPathExtension().lastPathComponent
-            .uppercased()
-            .prefix(16)
-            .replacingOccurrences(of: " ", with: ".")
-        let ext  = url.pathExtension.uppercased()
-        let type = ["PRG", "SEQ", "USR", "REL"].contains(ext) ? ext : "PRG"
-        let file = D64File(
-            filename: String(name),
-            fileType: type,
-            blocks: (data.count + 253) / 254,
-            track: 0,
-            sector: 0,
-            rawData: data
-        )
-        if !canFitFile(file) {
-            showCapacityError(filename: String(name))
+        let ext = url.pathExtension.lowercased()
+
+        // PC64 container format (.p00, .s00, .u00, .r00, etc.)
+        if let p00 = P00Parser.parse(data, ext: ext) {
+            let file = D64File(filename: p00.filename, fileType: p00.fileType,
+                               blocks: (p00.rawData.count + 253) / 254,
+                               track: 0, sector: 0, rawData: p00.rawData)
+            if !canFitFile(file) { showCapacityError(filename: p00.filename); return }
+            document.injectFile(file)
             return
         }
+
+        // Standard file
+        let name = String(url.deletingPathExtension().lastPathComponent
+            .uppercased().prefix(16).replacingOccurrences(of: " ", with: "."))
+        let type = ["PRG","SEQ","USR","REL"].contains(ext.uppercased()) ? ext.uppercased() : "PRG"
+        let file = D64File(filename: name, fileType: type,
+                           blocks: (data.count + 253) / 254,
+                           track: 0, sector: 0, rawData: data)
+        if !canFitFile(file) { showCapacityError(filename: name); return }
         document.injectFile(file)
     }
 

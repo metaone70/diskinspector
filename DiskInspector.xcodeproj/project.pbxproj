@@ -6,7 +6,19 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3E85FED12F7CF6AD00FD3F82 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3E85FED02F7CF6AD00FD3F82 /* Quartz.framework */; };
+		3E85FEDD2F7CF6AD00FD3F82 /* DiskInspectorQ.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3E85FECE2F7CF6AD00FD3F82 /* DiskInspectorQ.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		3E85FEDB2F7CF6AD00FD3F82 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3EDC78392F69476B00B48101 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3E85FECD2F7CF6AD00FD3F82;
+			remoteInfo = DiskInspectorQ;
+		};
 		3EDC78522F69476D00B48101 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 3EDC78392F69476B00B48101 /* Project object */;
@@ -23,15 +35,56 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		3E85FEDE2F7CF6AD00FD3F82 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				3E85FEDD2F7CF6AD00FD3F82 /* DiskInspectorQ.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		3E85FECE2F7CF6AD00FD3F82 /* DiskInspectorQ.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DiskInspectorQ.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		3E85FED02F7CF6AD00FD3F82 /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
 		3EDC78412F69476B00B48101 /* DiskInspector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DiskInspector.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3EDC78512F69476D00B48101 /* DiskInspectorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DiskInspectorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3EDC785B2F69476D00B48101 /* DiskInspectorUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DiskInspectorUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3E85FF292F7D0AC400FD3F82 /* Exceptions for "DiskInspector" folder in "DiskInspectorQ" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"C64_Pro_Mono-STYLE.ttf",
+			);
+			target = 3E85FECD2F7CF6AD00FD3F82 /* DiskInspectorQ */;
+		};
+		3E85FFB42F7D42FF00FD3F82 /* Exceptions for "DiskInspector" folder in "DiskInspector" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+			);
+			target = 3EDC78402F69476B00B48101 /* DiskInspector */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		3E85FED22F7CF6AD00FD3F82 /* DiskInspectorQ */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DiskInspectorQ;
+			sourceTree = "<group>";
+		};
 		3EDC78432F69476B00B48101 /* DiskInspector */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3E85FFB42F7D42FF00FD3F82 /* Exceptions for "DiskInspector" folder in "DiskInspector" target */,
+				3E85FF292F7D0AC400FD3F82 /* Exceptions for "DiskInspector" folder in "DiskInspectorQ" target */,
+			);
 			path = DiskInspector;
 			sourceTree = "<group>";
 		};
@@ -48,6 +101,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		3E85FECB2F7CF6AD00FD3F82 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3E85FED12F7CF6AD00FD3F82 /* Quartz.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3EDC783E2F69476B00B48101 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -72,12 +133,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		3E85FECF2F7CF6AD00FD3F82 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				3E85FED02F7CF6AD00FD3F82 /* Quartz.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		3EDC78382F69476B00B48101 = {
 			isa = PBXGroup;
 			children = (
 				3EDC78432F69476B00B48101 /* DiskInspector */,
 				3EDC78542F69476D00B48101 /* DiskInspectorTests */,
 				3EDC785E2F69476D00B48101 /* DiskInspectorUITests */,
+				3E85FED22F7CF6AD00FD3F82 /* DiskInspectorQ */,
+				3E85FECF2F7CF6AD00FD3F82 /* Frameworks */,
 				3EDC78422F69476B00B48101 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +159,7 @@
 				3EDC78412F69476B00B48101 /* DiskInspector.app */,
 				3EDC78512F69476D00B48101 /* DiskInspectorTests.xctest */,
 				3EDC785B2F69476D00B48101 /* DiskInspectorUITests.xctest */,
+				3E85FECE2F7CF6AD00FD3F82 /* DiskInspectorQ.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,6 +167,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3E85FECD2F7CF6AD00FD3F82 /* DiskInspectorQ */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3E85FEE22F7CF6AD00FD3F82 /* Build configuration list for PBXNativeTarget "DiskInspectorQ" */;
+			buildPhases = (
+				3E85FECA2F7CF6AD00FD3F82 /* Sources */,
+				3E85FECB2F7CF6AD00FD3F82 /* Frameworks */,
+				3E85FECC2F7CF6AD00FD3F82 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3E85FED22F7CF6AD00FD3F82 /* DiskInspectorQ */,
+			);
+			name = DiskInspectorQ;
+			packageProductDependencies = (
+			);
+			productName = DiskInspectorQ;
+			productReference = 3E85FECE2F7CF6AD00FD3F82 /* DiskInspectorQ.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		3EDC78402F69476B00B48101 /* DiskInspector */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3EDC78642F69476D00B48101 /* Build configuration list for PBXNativeTarget "DiskInspector" */;
@@ -102,10 +196,12 @@
 				3EDC783D2F69476B00B48101 /* Sources */,
 				3EDC783E2F69476B00B48101 /* Frameworks */,
 				3EDC783F2F69476B00B48101 /* Resources */,
+				3E85FEDE2F7CF6AD00FD3F82 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				3E85FEDC2F7CF6AD00FD3F82 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				3EDC78432F69476B00B48101 /* DiskInspector */,
@@ -173,6 +269,9 @@
 				LastSwiftUpdateCheck = 2630;
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
+					3E85FECD2F7CF6AD00FD3F82 = {
+						CreatedOnToolsVersion = 26.3;
+					};
 					3EDC78402F69476B00B48101 = {
 						CreatedOnToolsVersion = 26.3;
 					};
@@ -203,11 +302,19 @@
 				3EDC78402F69476B00B48101 /* DiskInspector */,
 				3EDC78502F69476D00B48101 /* DiskInspectorTests */,
 				3EDC785A2F69476D00B48101 /* DiskInspectorUITests */,
+				3E85FECD2F7CF6AD00FD3F82 /* DiskInspectorQ */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		3E85FECC2F7CF6AD00FD3F82 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3EDC783F2F69476B00B48101 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -232,6 +339,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		3E85FECA2F7CF6AD00FD3F82 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3EDC783D2F69476B00B48101 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -256,6 +370,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		3E85FEDC2F7CF6AD00FD3F82 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3E85FECD2F7CF6AD00FD3F82 /* DiskInspectorQ */;
+			targetProxy = 3E85FEDB2F7CF6AD00FD3F82 /* PBXContainerItemProxy */;
+		};
 		3EDC78532F69476D00B48101 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 3EDC78402F69476B00B48101 /* DiskInspector */;
@@ -269,13 +388,73 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		3E85FEDF2F7CF6AD00FD3F82 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DiskInspectorQ/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DiskInspectorQ;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = metesev.DiskInspector.DiskInspectorQ;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		3E85FEE02F7CF6AD00FD3F82 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DiskInspectorQ/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DiskInspectorQ;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = metesev.DiskInspector.DiskInspectorQ;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		3EDC78652F69476D00B48101 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -296,7 +475,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = metesev.DiskInspector;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -319,7 +498,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -340,7 +519,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = metesev.DiskInspector;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -476,11 +655,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = metesev.DiskInspectorTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -501,11 +680,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = metesev.DiskInspectorTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -525,11 +704,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = metesev.DiskInspectorUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -549,11 +728,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 7;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = metesev.DiskInspectorUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -572,6 +751,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3E85FEE22F7CF6AD00FD3F82 /* Build configuration list for PBXNativeTarget "DiskInspectorQ" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E85FEDF2F7CF6AD00FD3F82 /* Debug */,
+				3E85FEE02F7CF6AD00FD3F82 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		3EDC783C2F69476B00B48101 /* Build configuration list for PBXProject "DiskInspector" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

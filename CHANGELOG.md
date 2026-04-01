@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.6
+
+### New Features
+- Clone Disk — File menu → Clone Disk… saves an independent copy of the open disk image to a new file; the original stays open and unchanged
+- Import from Folder — Tools menu → Import from Folder… scans a Mac folder and imports all .prg, .seq, .usr, .rel and P00/S00 files at once; shows a summary of how many were imported and how many were skipped (disk full or unreadable)
+- P00/S00 file support — PC64 container files (.P00, .S00, .U00, .R00 and numbered variants .P01, .P02 etc.) are now recognised on import; the C64 filename stored in the container header is used automatically, and the file type is derived from the extension
+- Quick Look preview — press Space on any .d64, .d71, .d81, or .t64 file in Finder to see the disk directory listing without opening the app; shows disk name, all files with block counts, free blocks, and disk format in C64-styled colour scheme
+
+
 ## v1.5
 
 ### New Features
@@ -13,26 +22,6 @@
 - Batch Export — export all files from an open disk to a Mac folder at once (context menu → Export All to Mac…)
 - SEQ/USR file viewer — double-click a SEQ or USR file to view its PETSCII text content
 - 6510 disassembler — context menu → View Disassembly on non-BASIC PRG files shows exact addresses, hex bytes, mnemonics and operands
-
-### Bug Fixes
-- Fixed drag-and-drop import from Finder — files dragged from a Finder window into a disk image window are now correctly imported; multiple files can be dropped at once
-- Disassembler no longer stops at 8192 instructions — large PRG files are now fully disassembled
-- Hex viewer now shows actual C64 memory addresses for PRG files (e.g. starting at $0800 instead of $0000); selected byte shows both raw file offset and the memory address
-- Fixed T64 "Open Disk in VICE" — T64 is a tape archive and cannot be mounted as a drive; it is now converted to a virtual D64 on-the-fly (same approach as NIB) and mounted on drive 8
-- Fixed T64 "Run File in VICE" — selected program is extracted as a temporary PRG file and autostarted directly, bypassing unreliable VICE tape autostart behaviour
-- Fixed "Run File in VICE" for files with PETSCII special characters in the filename — VICE's autostart does exact matching (not wildcard), so the `?` substitution approach failed; such files are now also extracted to a temporary PRG file
-- Fixed About box showing wrong version — version string was hardcoded separately from the build settings; now reads from the app bundle at runtime
-
-### UI Improvements
-- Directory listing: block count column is wider and filename column is flexible, giving more visible space between blocks, name, and file type
-- File type column is now compact (fits the 3-character type label) instead of oversized
-- VALIDATE / BAM / INFO buttons are now left-aligned instead of right-aligned
-- INFO panel no longer resizes the window when toggled — it expands in place without disturbing the user's window size
-- Default window height increased to show 10 file rows instead of 4
-- Export Selected to Mac… — right-click any selection of multiple files to export them all to a chosen folder at once
-- Cmd+Up / Cmd+Down moves the selected file(s) one slot up or down in the directory; works with multi-selection
-- Drag-and-drop file reordering improved — insertion indicator (blue bar) appears in the gap above the target row with no layout shift; rows no longer jump when hovering during a drag
-- Fixed separator drag-and-drop from the Separator Library — separators can now be dragged directly into a disk window and dropped at any position
 
 
 ## v1.4
